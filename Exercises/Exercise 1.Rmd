@@ -1,0 +1,145 @@
+---
+title: "Exercise 1"
+author: "Robert Toto"
+date: "2/08/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+require ("knitr")
+opts_knit$set(root.dir="~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data")
+
+library(tidyverse)
+library(ggplot2)
+```
+## 1) Gas Prices
+```{r gas, echo=FALSE}
+gas <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/GasPrices.csv")
+```
+In this problem, we assess five possible theories about consumer gas prices in Austin, Texas using 2016 price data from 101 gas stations in the city. 
+
+### A) Competitor Theory: Gas stations charge more if they lack direct competition in sight 
+```{r gas_competitor, include=TRUE, echo=FALSE}
+ggplot(data=gas) +
+  geom_boxplot(aes(x=factor(Competitors),y=Price)) +
+  labs(x = 'Competitors in Sight? (Y=Yes, N=No)',
+       y = 'Gas Price ($ per gallon)',
+       title = 'Competitor Theory',
+       subtitle = 'Gas Price by Whether Competitors Are in Sight of Station') +
+  theme_light() +
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10))) +
+  theme(axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(axis.title.x = element_text(margin = margin(t = 10))) +
+  scale_y_continuous(breaks=seq(1.8,2.1,by=0.1))
+```
+
+### B) Income Theory: The richer the area, the higher the gas price
+```{r gas_rich, include=TRUE, echo=FALSE}
+ggplot(data=gas) +
+  geom_point(mapping = aes(x=Income, y=Price)) +
+  labs(x = 'Median Household Income in Zip Code of Gas Station (2014)',
+       y = 'Gas Price ($ per gallon)',
+       title = 'Income Theory',
+       subtitle = 'Gas Price vs Median Income Near Gas Station') +
+  theme_bw() +
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10))) +
+  theme(axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(axis.title.x = element_text(margin = margin(t = 10))) +
+  scale_x_continuous(breaks=seq(0,150000,25000))
+```
+
+### C) Brand Theory: Shell charges more than other brands
+```{r gas_Shell, include=TRUE, echo=FALSE}
+g1 = gas %>%
+  group_by(Brand) %>%
+  summarize(mean_price = mean(Price))
+
+  ggplot(data=g1) + 
+  geom_col(mapping = aes(x=Brand, y=mean_price, fill=Brand)) +
+  labs(x = 'Gas Seller',
+       y = 'Gas Price ($ per gallon)',
+       title = 'Brand Theory',
+       subtitle = 'Gas Price vs Median Income Near Gas Station') +
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10))) +
+  theme(axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(axis.title.x = element_text(margin = margin(t = 10))) +
+  scale_y_continuous(limits=c(0,2)) +
+  scale_x_discrete(limits=c("Shell","Chevron-Texaco","ExxonMobil","Other"))
+  
+```
+
+### D) Stoplight Theory: Gas stations at stoplights charge more
+```{r gas_stoplight, include=TRUE, echo=FALSE}
+ggplot(data=gas) +
+  geom_histogram(aes(x=Price), binwidth=0.033) + 
+  facet_wrap(~Stoplight) +
+  labs(x = 'Gas Price ($ per gallon)',
+       y = 'Frequency',
+       title = 'Stoplight Theory',
+       subtitle = 'Gas Prices by Whether a Stoplight Is in Front of Station') +
+  theme_test() +
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10))) +
+  theme(axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(axis.title.x = element_text(margin = margin(t = 10)))
+
+gas %>%
+  group_by(Stoplight) %>%
+  summarize(mean_price2 = mean(Price))
+
+```
+
+### E) Highway Theory: Gas stations with direct highway access charge more
+```{r gas_hwy, include=TRUE, echo=FALSE}
+ggplot(data=gas) +
+  geom_boxplot(aes(x=Highway, y=Price)) +
+  labs(x = 'Highway-Accessible (Y=Yes, N=No)',
+       y = 'Gas Price ($ per gallon)',
+       title = 'Highway Thoery',
+       subtitle = 'Gas Prices by Whether a Station is Accessible from Highway') +
+  theme_light() + 
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10))) +
+  theme(axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(axis.title.x = element_text(margin = margin(t = 10)))
+```
+
+
+## 2) Bike Share Network
+```{r bike, echo=FALSE}
+abia <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/bikeshare.csv")
+```
+Text...
+
+```{r bike1, include=TRUE, echo=FALSE}
+```
+
+
+
+
+## 3) Flights at ABIA
+```{r ABIA, echo=FALSE}
+abia <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/ABIA.csv")
+```
+Text...
+
+```{r ABIA1, include=TRUE, echo=FALSE}
+```
+
+
+
+
+## 4) K-Nearest Neighbors
+```{r sclass, echo=FALSE}
+sclass <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/sclass.csv")
+```
+
+Text...
+
+```{r sclass1, include=TRUE, echo=FALSE}
+trim_list = c('350', '65 AMG')
+
+s1 = sclass %>%
+  filter(trim %in% trim_list)
+
+```
+
+
