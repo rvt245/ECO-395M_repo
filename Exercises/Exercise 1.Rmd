@@ -11,14 +11,15 @@ opts_knit$set(root.dir="~/UT MA Program/Spring 2021/Data Mining & Statistical Le
 
 library(tidyverse)
 library(ggplot2)
+library(dplyr)
 ```
 ## 1) Gas Prices
 ```{r gas, echo=FALSE}
 gas <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/GasPrices.csv")
 ```
-In this problem, we assess five possible theories about consumer gas prices in Austin, Texas using 2016 price data from 101 gas stations in the city. 
+In this problem, we assess five possible theories about consumer gas prices in Austin, TX using 2016 price data from 101 gas stations in the city. The theories consider five different factors that may drive gas prices: proximity of competitors, income of local neighborhood, brand name, proximity of a stop light, and proximity to a highway. 
 
-### A) Competitor Theory: Gas stations charge more if they lack direct competition in sight 
+### A) Competitor Theory: Gas stations charge more if there is no competition in sight 
 ```{r gas_competitor, include=TRUE, echo=FALSE}
 ggplot(data=gas) +
   geom_boxplot(aes(x=factor(Competitors),y=Price)) +
@@ -32,6 +33,10 @@ ggplot(data=gas) +
   theme(axis.title.x = element_text(margin = margin(t = 10))) +
   scale_y_continuous(breaks=seq(1.8,2.1,by=0.1))
 ```
+Claim: If a driver has more than one option for a gas purchase, she will minimize her expenses by choosing a station with lower prices, all else held equal. If the driver can physically view more than one gas station, the cost of optimizing (minimizing) expenses drops essentially to zero because she does not need to research alternatives to a single station. She has full information on more than one from physically viewing them. Gas stations themselves would understand this and lower their prices to compete with nearby (viewable) competitors. However, if no competitor is hearby, a station has a localized monopoly and will charge a greater mark-up. The boxplot below attempts to validate this monopoly pricing thoery by comparing the distributions of prices set by stations when a competitor is within view to the distribution when no competitor is veiwable.
+
+Conclusion: The boxplot shows a clear visual difference in the two distributions. When a competitor is **not** in sight, the median price a gas station charges is $0.04 higher per. The boxplot further demonstrates that the upper limit of pricing is much greater for the local monopolies (no competitors in sight). For these stations, the top 25% of prices fall between $1.95 and $2.09, wheres the top 25% of prices for stations with visible competition is entirely beneath $2.00. One can see that monopoly pricing has a longer upper range, higher maximum, and overall wider distribution, demonstrating that local monopolies have much greater pricing power and price-setting flexibility. The boxplot certainly lends visual credibility to the competitor theory. One can expect to pay lower prices when there is direct competition.
+
 
 ### B) Income Theory: The richer the area, the higher the gas price
 ```{r gas_rich, include=TRUE, echo=FALSE}
@@ -47,24 +52,35 @@ ggplot(data=gas) +
   theme(axis.title.x = element_text(margin = margin(t = 10))) +
   scale_x_continuous(breaks=seq(0,150000,25000))
 ```
+In theory, a neighborhood with higher incomes would have higher local gas station prices because people with greater expendible income have a higher market willingness-to-pay for basic goods, like gasoline, since these goods constitute such a small portion of their overall income. Conversely, low-income gas stations would have lower mark-ups and overall prices because people with lower incomes are more sensitive to the prices of basic goods, like gasoline, since these goods constitute a large portion of their overall income and since they may substitute away from some of them. For instance, if a gas station charges a very high price in a low-income neighborhood, local residents are likely to substitute away from personal transportation to public transportation--a cheaper option. 
+
+The scatterplot validates the theory because it demonstrates that, in general, as the income of a neighborhood rises, so do the gas prices. The relationship is not perfectly linear, but there is a noticeable trend. If one were to draw an OLS line through the plot, it would have a positive slope. The data at the very high range of incomes is especially interesting. For neighborhoods with median incomes greater than $125,000, the average gas price is never below $1.85 per gallon, which is about the median price for all average prices from neighborhoods with median incomes under $100,000. Interestingly, at incomes below $25,000, there is no trend. Of the four data-points in this range, average gas prices can rise above $1.95 per gallon, well above the median of the overall data. It would be interesting to gather more data on gas prices exclusively in lowest-income neighborhoods to see if this lack of trend holds. 
 
 ### C) Brand Theory: Shell charges more than other brands
 ```{r gas_Shell, include=TRUE, echo=FALSE}
-g1 = gas %>%
-  group_by(Brand) %>%
-  summarize(mean_price = mean(Price))
 
-  ggplot(data=g1) + 
-  geom_col(mapping = aes(x=Brand, y=mean_price, fill=Brand)) +
-  labs(x = 'Gas Seller',
-       y = 'Gas Price ($ per gallon)',
+g1 <- mutate(gas, global_avg = mean(Price)) #Uses dplyr package
+#g1 
+
+g1 = g1 %>%
+  group_by(Brand, global_avg) %>%
+  summarize(mean_price = mean(Price)) %>%
+  mutate(dev = mean_price - global_avg)
+#g1
+
+
+ggplot(data=g1) + 
+  geom_col(mapping = aes(x=Brand, y=dev, fill=Brand)) +
+   labs(x = 'Gas Brand',
+       y = 'Deviation from Global Average ($ per gallon)',
        title = 'Brand Theory',
-       subtitle = 'Gas Price vs Median Income Near Gas Station') +
+       subtitle = 'Deviation of Average Brand Price from Global Average') +
   theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10))) +
   theme(axis.title.y = element_text(margin = margin(r = 10))) +
   theme(axis.title.x = element_text(margin = margin(t = 10))) +
-  scale_y_continuous(limits=c(0,2)) +
   scale_x_discrete(limits=c("Shell","Chevron-Texaco","ExxonMobil","Other"))
+
+
   
 ```
 
@@ -105,41 +121,295 @@ ggplot(data=gas) +
 
 ## 2) Bike Share Network
 ```{r bike, echo=FALSE}
-abia <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/bikeshare.csv")
+bike <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/bikeshare.csv")
 ```
 Text...
 
 ```{r bike1, include=TRUE, echo=FALSE}
+b1 <- bike %>%
+  group_by(hr) %>%
+  summarize(mean_rentals = mean(total))
+
+ggplot(data=b1) +
+  geom_line(aes(x = hr, y = mean_rentals)) +
+   labs(title = 'Average Bike Rentals by Hour',
+       x = 'Hour (0-24)',
+       y = 'Average Rentals',
+       caption = 'Source: Capital Bike Share') +
+  theme_light() +
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10)),
+        axis.title.y = element_text(margin = margin(r = 10)),
+        axis.title.x = element_text(margin = margin(t = 10)))
 ```
 
+```{r bike2, include=TRUE, echo=FALSE}
+b2 <- bike %>%
+  group_by(hr, workingday) %>%
+  summarize(mean_rentals = mean(total))
+
+#Create new labels for workingday variable to use in facet labelling
+workday.names = c('1' = "Workingday", 
+                  '0' = "Weekend or Holiday")
+
+ggplot(data=b2) +
+  geom_line(aes(x = hr, y = mean_rentals)) +
+  facet_wrap(~workingday, labeller = as_labeller(workday.names)) +
+  labs(title = 'Rentals by Type of Day',
+       subtitle = 'Average Hourly Rentals by Whether it is a Workday',
+       x = 'Hour (0-24)',
+       y = 'Average Rentals',
+       caption = 'Source: Capital Bike Share') +
+  theme_bw() +
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10)),
+        axis.title.y = element_text(margin = margin(r = 10)),
+        axis.title.x = element_text(margin = margin(t = 10)))
+```
+```{r bike3, include=TRUE, echo=FALSE}
+
+b3 <- bike %>%
+  filter(hr == "8") %>%
+  group_by(weathersit, workingday) %>%
+  summarize(mean_rentals = mean(total))
+b3
+
+#Create new labels for workingday variable to use in facet labelling
+workday.names = c('1' = "Workingday", 
+                  '0' = "Weekend or Holiday")
+  
+ggplot(data=b3) +
+  geom_col(aes(x = factor(weathersit), y = mean_rentals, fill = factor(weathersit))) + 
+  facet_wrap(~workingday, labeller = as_labeller(workday.names)) +
+  scale_fill_discrete(labels = c("1: Clear",
+                                 "2: Misty/Cloudy",
+                                 "3: Light Storms/Rain/Snow")) +
+  labs(y = 'Average Bike Rentals at 8AM',
+       title = 'Morning Bike Rentals',
+       subtitle = 'Average Bike Rentals at 8AM by Weather and Working Day',
+       fill = "Weather",
+       caption = "Source: Capital Bike Share") +
+  theme_minimal() + 
+  theme(plot.subtitle = element_text(hjust = 0, margin = margin(b = 10)),
+        axis.title.y = element_text(margin = margin(r = 10)),
+        axis.title.x = element_blank(),
+        legend.position = "bottom")
+```
+The bike rentals are much higher for workingdays since the data only shows rentals occuring at 8AM. This reflects the fact that on workingday, people use bike rentals to go to work. However, on weekends or holidays, while overall rentals may be more active due greater recreation, people are not renting bikes so early in the morning. As shown in the previous line graph, on weekends an holidays, people mainly rent bikes at or after noon. 
+  
 
 
 
 ## 3) Flights at ABIA
-```{r ABIA, echo=FALSE}
+```{r ABIA, include=TRUE, echo=FALSE, message=FALSE}
 abia <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/ABIA.csv")
+airports <- read.csv("C:/Users/rvtot/OneDrive/Economics/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO-395M_repo/Exercises/Exercise 1/airport-codes.txt")
+library(ggmap)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+## Create a map of average delays for inbound AUS flights from US airports 
+
+#Clean airport location data and merge to abia 
+airports <- airports %>%
+  filter(iso_country=="US") #Only use US airports
+
+names(airports)[names(airports) =="iata_code"] <- "Origin" #Rename common var for merging
+
+keep <- c("Origin","coordinates") # Keep only the airport code and location data
+airports = airports[keep]
+
+airports = airports %>% #Delete missing data
+  na_if("") %>%
+  na.omit
+
+a1 <- merge(abia,airports,by="Origin") #Merge airport location data to ABIA dataset
+
+#Separate coordinate data into two columns: latitude and longitude
+a1 <- separate(a1, 'coordinates', paste("coordinates", 1:2, sep="_"), sep=", ")#Uses tidyr package
+names(a1)[names(a1) == "coordinates_1"] <- "latitude"
+names(a1)[names(a1) == "coordinates_2"] <- "longitude"
+a1$latitude <- as.numeric(as.character(a1$latitude))
+a1$longitude <- as.numeric(as.character(a1$longitude))
+
+#Keep only the columns you need (locaiton, distance, delay, etc)
+keep <- c("Origin","longitude","latitude","ArrDelay","Distance","Dest")
+a1 = a1[keep]
+
+a1 = a1 %>% #Delete missing data
+  na_if("") %>%
+  na.omit
+
+#Pipe the data. Keep only flights inbound to AUS. Create average delay variable and delay category variable 
+a1 = a1 %>%
+  filter(Dest=="AUS") %>%
+  group_by(Origin, longitude, latitude, Distance) %>%
+  summarize(mean_delay = mean(ArrDelay), .groups = 'drop') %>%
+  mutate(delay_cat = case_when(
+    mean_delay < 0 ~ "None or Early",
+    mean_delay < 10 ~ "Minimal: 0-10",
+    mean_delay < 20 ~ "Moderate: 10-20",
+    mean_delay < 30 ~ "Serious: 20-30",
+    mean_delay > 30 ~ "Severe: > 30"))
+a1$delay_cat <- factor(a1$delay_cat, levels = c("None or Early",
+                                                "Minimal: 0-10",
+                                                "Moderate: 10-20",
+                                                "Serious: 20-30",
+                                                "Severe: > 30"))
+
+#Register the API to use Google Cloud, Google Maps
+#register_google(key = "AIzaSyClTRmr8augoJByWgffk6gM2__410zr2Zo", write = TRUE)
+
+#Generate a map of the US using Google Map 
+map<-get_map(location='united states', zoom=4, maptype = "terrain", source='google',color='color')
+
+#Plot airports and delay times onto US map 
+delay_map = ggmap(map) + geom_point(data = a1,
+        aes(x=longitude, y=latitude, color=delay_cat)) +
+        scale_color_brewer(palette="YlOrRd") +
+        labs(title = 'Geographic Delays',
+          subtitle = 'Average Delay for Inbound Flights to ABIA from US Airports',
+          color = "Delay Time (minutes)",
+          caption = "Source: Austin Bergstrom International Airport; Google") +
+          theme(axis.title.y = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.text.x = element_blank(),
+              axis.text.y = element_blank())
+delay_map
 ```
 Text...
 
 ```{r ABIA1, include=TRUE, echo=FALSE}
+
+a2 = a1 %>%
+  filter(mean_delay > 7.5, 
+         mean_delay < 50)
+
+a2 = ggplot(data = a2, mapping = aes(x = mean_delay, y = reorder(Origin, mean_delay), color = Distance)) +
+      geom_vline(xintercept = 20, color = "gray30") +
+      geom_point(size = 2) +
+      labs(title = 'Airports with Longest Delays',
+          subtitle = 'Rank of Airports with Longest Delays for Flight Arrivaing to ABIA',
+          y = "Airports",
+          x = "Delay Time (minutes)",
+          color = "Distance from ABIA (miles)",
+          caption = "Source: Austin Bergstrom International Airport") 
+a2
 ```
+This graphic gives the average arrival delay by Airport for flights inbout to Austin Bergstrom International Airport. The data show that most average arrival delay is below 20 minutes for most airports, which shows that most of the flights incoming to Austin are well-organized and without complication. Interestingly, there does not appear to be a relationship between arrival time and distance. For instance, the average delay for flights from Dallas (DFW) to Austin is greater than for flights coming from San Francisco (SFO) even though Dallas is only 189 miles away, while San Francisco is over 1,000 miles away. Furthermore, there appear to be outlier airports that suffer from much greater arrival delays--the three airports at the top of the list for which the average delay is well beyond 20 minutes. These airports are Dulles International Airport in Virginia (IAD), Raleigh-Durham International Airport in North Carolina (RDU), and Birmingham-Shuttlesworth Airport in Alabama (BHM). Notably, BHM is by far the closest of these three outliers but has the greatest average delay (about 37 minutes per flight). Overall, the driver of delays seem to have far more to do with airport management or weather than distance. One could surmise that SFO is very well-managed, while BHM is poorly-managed. Alternatively, it is possible that the airline is responsible. Most nonstop flights from SFO to AUS are carried by United Airlines, whereas most nonstop lights from BHM are carried by American Airlines. Looking just at Dallas, there are two airports, DFW and DAL. Flights from DFW, which are all American Airlines flights have a 10 minute average delay, whereas flights from DAL, which are all Southwest Airlines flights have half the delay (5 minutes). So while the distance is effectively the same, the main difference driving the delay variation seems to be airline. Some airlines may be better at optimizing flight schedules than others, more effectively minimizing delays. 
 
-
+```{r ABIA2, include=TRUE, echo=FALSE}
+a3 <-ggplot(data=a1) +
+      geom_point(mapping = aes(x = Distance, y = mean_delay, color=delay_cat)) +
+      scale_color_brewer(palette="YlOrRd") +
+      scale_y_continuous(limits = c(-5,40)) +
+      theme_dark() +
+      labs(title = 'Does Distance Affect Arrival Delay?',
+          subtitle = 'Average Arrival Delay to IBIA by Distance from Departure Airport',
+          y = "Average Delay Time (minutes)",
+          x = "Distance to ABIA (miles)",
+          color = "Delay Time (minutes)",
+          caption = "Source: Austin Bergstrom International Airport") 
+a3
+```
+This scatterplot confirms that there is no relationship between flight distance and average delay, discussed in the previous graph. Most airports have only a minimal delay, and these airports are homogenously scattered by distance from 0 to 1,500 miles from Austin. This is strong evidence that distance is not a major driver of delay. The same homogenous characterization holds for airports with moderate delays, which are scattered evenly across the distance axis. In fact, the only airport with severe delays on average, Birmingham-Shuttlesworth Airport in Alabama (BHM), is below the median distance for all airports. Along with the previous graph, this is good confirmation that factors other than distance are the most important for delays, including airport and airline management and optimization. Since different airports are hubs for different airlines, carriers are not homogenously distributed across all flight paths incoming to Austin. As we saw by looking at Dallas, American Airlines seems to be worse at minimizing delays than Southwest Airlines for flights from Austin to Dallas. This is likely because the incoming flights to Dallas that will carry the flight to Austin are coming from different original cities in both cases. Possibly the origin city has more delays into Dallas for the American Airlines schedule than the Southwest Airlines schedule. 
 
 
 ## 4) K-Nearest Neighbors
-```{r sclass, echo=FALSE}
+```{r sclass, include=TRUE, echo=FALSE}
+#Load packages for train/test and KNN
+library(tidyverse)
+library(lattice)
+library(purrr)
+library(rsample)
+library(caret)
+library(modelr)
+library(parallelly)
+
 sclass <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/sclass.csv")
+
+#Split up data by trim 
+trim_keep <- c('350','65 AMG')
+sboth = sclass %>%
+  filter(trim %in% trim_keep)
+s350 = sclass %>%
+  filter(trim=="350")
+s65 = sclass %>%
+  filter(trim=="65 AMG")
+
+#Plot price-mileage data, faceted by trim to get an idea of the data 
+ggplot(data=sboth) +
+  geom_point(mapping = aes(x = mileage, y = price)) +
+  facet_wrap(~trim)
+  #The 65 AMG submodels have far more variance in price and mileage
+  #The 350 submodels are more concentrated in this relationship
+
 ```
 
 Text...
 
 ```{r sclass1, include=TRUE, echo=FALSE}
-trim_list = c('350', '65 AMG')
+library(tidyverse)
+library(lattice)
+library(purrr)
+library(rsample)
+library(caret)
+library(modelr)
+library(parallelly)
+library(foreach)
+## 350 AMG ##
 
-s1 = sclass %>%
-  filter(trim %in% trim_list)
+#Do a train-test split for 350 AMG trim cars
+s350_split = initial_split(s350, prop=0.9)
+s350_train = training(s350_split)
+s350_test = testing(s350_split)
 
+#Try a linear and quadratic model, just to see fit
+lm1 = (lm(price ~ mileage, data=s350_train))
+lm2 = lm(price ~ poly(mileage, 2), data=s350_train)
+  #plot the parametric models
+  ggplot(data=s350_train) +
+    geom_point(aes(x=mileage, y=price)) +
+    geom_smooth(method="lm", mapping = aes(x=mileage, y=price)) +
+    stat_smooth(aes(x=mileage, y=price), method = "lm", formula = y ~ poly(x,2))
+  
+## KNN Model
+#Fit the knn model on the training data and make predictions using the test data 
+knn_model = knnreg(price ~ mileage, data = s350_train, k=2)
+rmse(knn_model, s350_test)
+#Plot the prediction on the test data using KNN for k=100
+s350_test = s350_test %>%
+  mutate(price_pred = predict(knn_model, s350_test))
+  #Plot the original data (geom_point); Plot the price prediction data (geom_line)
+  p_test = ggplot(data = s350_test) +
+    geom_point(mapping = aes(x = mileage, y = price), alpha = 0.2) +
+    geom_line(aes(x = mileage, y = price_pred), color='red', size=0.5)
+  p_test
+
+## Iterate the KNN Model over many different values of K ()
+#Define the k-values you want to make knn models for
+k_grid = c(2, 4, 6, 8, 10, 15, 20, 25, 30, 35, 40, 45,
+           50, 60, 70, 80, 90, 100, 125, 150)
+
+#Iterate the KNN Models across the values for K you just defined
+#The iteration will also provide the RMSE for each KNN model
+rmse_grid = foreach(k = k_grid, .combine='c') %do% {
+ knn_model = knnreg(price ~ mileage, data = s350_train, k=k)
+ rmse(knn_model, s350_test)
+}
+
+#Define a data frame containing the k-values and RMSE values from your iterations
+rmse_grid = data.frame(K = k_grid, RMSE = rmse_grid)
+
+head(rmse_grid)
+
+#Plot K vs RMSE to help find an optimal K for the KNN model 
+ggplot(data=rmse_grid) +
+  geom_path(aes(x=K, y=RMSE)) +
+  labs(y = "RMSE")
+
+  
 ```
 
 
