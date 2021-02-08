@@ -284,7 +284,7 @@ a1$delay_cat <- factor(a1$delay_cat, levels = c("None or Early",
                                                 "Severe: > 30"))
 
 #Register the API to use Google Cloud, Google Maps
-#register_google(key = "AIzaSyClTRmr8augoJByWgffk6gM2__410zr2Zo", write = TRUE)
+#register_google(key = "INSERT YOUR API", write = TRUE)
 
 #Generate a map of the US using Google Map 
 map<-get_map(location='united states', zoom=4, maptype = "terrain", source='google',color='color')
