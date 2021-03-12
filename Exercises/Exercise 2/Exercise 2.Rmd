@@ -1,0 +1,444 @@
+---
+title: "DMSL Exercise 2"
+author: "Robert Toto"
+date: "3/6/2021"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE, echo=FALSE}
+require ("knitr")
+opts_knit$set(root.dir="~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data")
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+# Problem One 
+```{r metro, echo=FALSE}
+metroUT <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/capmetro_UT.csv")
+```
+
+```{r panel1, include=TRUE, echo=FALSE, message=FALSE}
+#Average the boardings across hour, day, and month
+metro1 <- metroUT %>%
+  group_by(hour_of_day, day_of_week, month) %>%
+  summarize(avg_board = mean(boarding))
+
+#Order the days of the week, and the months to prep the facet and legend
+metro1 <- mutate(metro1, 
+                 day_of_week = factor(day_of_week, levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")),
+                 month = factor(month, levels = c("Sep","Oct","Nov")))
+
+#Line Graph 
+ggplot(data = metro1) +
+  geom_line(mapping = aes(x = hour_of_day, y = avg_board, group = month, color=month)) +
+  facet_wrap(~day_of_week) + 
+  labs(x = "Hour of Day",
+       y = "Average Boarding",
+       title = 'Average Fall Metro Bus Boarding in Austin',
+       color = "Month",
+       caption = "Source: Capital Metro Austin")
+```
+The 3pm - 5pm peak boarding hours are roughly the same for weekdays (Monday - Friday). This makes sense since these are the hours most students are leaving UT campus during class-days to return home. On the weekends, there are no distinct peak hours for boarding, as most UT metro bus use is for commuting to class. On weekends, far less students go to campus, so ridership is low on Saturday and Sunday. 
+
+In September, the average Monday boardings are lower than in November and October boardings. This is likely due to the Labor Day holiday which takes place in September. Since UT students do not have classes on Labor day, they are not using UT metro buses that day. Since there are only 4 or 5 Mondays in September, Labor Day commuting absences have a large effect on September's monthly average for Mondays. 
+
+In November, the average Wed/Thu/Fri boardings are lower than the other months because UT students have these days off for Thanksgiving. This is similar to the effect of Labor Day in September. Since students are not attending classes around Thanksgiving, they are not using public transportation on these days.  
+
+\newpage
+```{r panel2, include=TRUE, echo=FALSE, message=FALSE}
+ggplot(data=metroUT) +
+  geom_point(mapping = aes(x=temperature, y=boarding, color=weekend)) +
+  facet_wrap(~hour_of_day) +
+  labs(title = "Metro Bus Boarding by Hour, Temperature, and Type of Day",
+       x = "Temperature (F)",
+       y = "Boarding",
+       color = "Day",
+       caption = "Source: Capital Metro Austin")
+
+
+```
+This figure shows how the amount of students boarding buses varies with temperature for each hour the metro runs (6am-11pm). Data points represent data in 15-minute intervals and are further differentiated by whether it is a weekday or weekend, using coloration. Generally, the amount of students boarding buses is invariant to temperature within an hour. Boarding is mostly sensitive to time-of-day, rather than temperature. At peak weekday hours, from 3pm-5pm, the temperature is higher than other hours, however, boarding levels are still high (up to 250 boardings in a 15-minute period). This makes sense since students in Austin rely heavily on public bus transportation to get to campus, regardless of heat. Weekend ridership is low regardless of hour or temperature since there are no classes. Therefore, when controlling for day type (weekend vs weekday) and hour, temperature does not have a noticeable effect on ridership.
+
+\newpage
+# Problem Two 
+```{r saratoga, echo=FALSE, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(modelr)
+library(rsample)
+library(mosaic)
+data(SaratogaHouses)
+#glimpse(SaratogaHouses)
+
+#Convert SaratogaHouses dataframe to data panel 
+library( data.table )
+library( lubridate )
+houses <- as.data.table( SaratogaHouses )
+```
+
+``` {r linear, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(modelr)
+library(purrr)
+library(caret)
+library(rsample)
+library(parallel)
+library(FNN)
+library(class)
+library(robustHD) #for standardization
+library(stargazer)
+
+#Transformations & Standardizations
+houses <- houses %>%
+  mutate(ln_price = log(price),
+         ln_livingArea = log(livingArea),
+         ln_pctCollege = log(pctCollege),
+         ln_landValue = log(landValue),
+         ln_age = ifelse(age>0, log(age), 0),
+         stand_price = standardize(price),
+         stand_livingArea = standardize(livingArea),
+         stand_ln_pctCollege = standardize(ln_pctCollege),
+         stand_landValue = standardize(landValue),
+         stand_ln_age = standardize(ln_age),
+         stand_bedrooms = standardize(bedrooms),
+         stand_bathrooms = standardize(bathrooms))
+
+# Split into training and testing sets
+saratoga_split = initial_split(houses, prop = 0.8)
+saratoga_train = training(saratoga_split)
+saratoga_test = testing(saratoga_split)
+
+# Baseline Model (medium)
+baseline = lm(price ~ lotSize + age + livingArea + pctCollege + bedrooms + 
+		fireplaces + bathrooms + rooms + heating + fuel + centralAir, data=saratoga_train)
+baseline_predict = predict(baseline, data.frame(saratoga_test))
+
+# Linear Model
+linear = lm(price ~ lotSize + ln_age + livingArea + ln_pctCollege + bedrooms + 
+		fireplaces + bathrooms + rooms + heating + fuel + centralAir +
+		lotSize*landValue + livingArea*fireplaces + fuel*centralAir + waterfront*landValue +
+		newConstruction*landValue + bedrooms*bathrooms + ln_pctCollege*landValue,
+		data=saratoga_train)
+linear_predict = predict(linear, data.frame(saratoga_test))
+
+#Forward Selection Using "Medium" as Starting-Point
+#forward = step(baseline, direction='forward',
+#  scope = ~(lotSize + age + livingArea + pctCollege + bedrooms + 
+#		fireplaces + bathrooms + rooms + heating + fuel + centralAir +
+#		landValue + sewer + newConstruction + waterfront)^2)
+#forward
+#forward_predict = predict(forward, data.frame(saratoga_test))
+
+# KNN Model
+knn = knnreg(price ~ lotSize + stand_ln_age + stand_livingArea + stand_ln_pctCollege + bedrooms + fireplaces + bathrooms + rooms + heating + fuel + centralAir, data=saratoga_train, k = 25)
+knn_predict = predict(knn, data.frame(saratoga_test))
+
+# Predictions out of sample
+# Root mean squared error
+baseline_rmse <- RMSE(saratoga_test$price, baseline_predict)
+linear_rmse <- RMSE(saratoga_test$price, linear_predict)
+knn_rmse <- RMSE(saratoga_test$price, knn_predict)
+#Table of RMSEs for Comparison
+df_rmse1 <- data.frame(Baseline = baseline_rmse)
+df_rmse1[2] <- data.frame(Linear = linear_rmse)
+df_rmse1[3] <- data.frame(KNN = knn_rmse)
+df_rmse1 <- setattr(df_rmse1, "row.names", c("RMSE"))
+stargazer(df_rmse1, type = "text", summary=FALSE,
+          title = "RMSE Comparison")
+
+##--------Now, use Cross-Validation---------##
+
+#K-Fold Cross-Validation
+house_folds <- crossv_kfold(houses, k=30)
+
+#Baseline Model (using cross-validation) - loop over folds 
+baseline_cv = map(house_folds$train,
+    ~lm(price ~ lotSize + age + livingArea + pctCollege + bedrooms + 
+		fireplaces + bathrooms + rooms + heating + fuel + centralAir, 
+		data = .))
+
+#Linear Model (using cross-validation) - loop over folds
+linear_cv = map(house_folds$train, 
+    ~lm(price ~ lotSize + age + livingArea + ln_pctCollege + bedrooms + 
+		fireplaces + bathrooms + rooms + heating + fuel + centralAir +
+		lotSize*landValue + livingArea*fireplaces + fuel*centralAir + waterfront*landValue +
+		newConstruction*landValue + bedrooms*bathrooms + ln_pctCollege*landValue,
+		data = .))
+
+#KNN Model (using cross-validation)
+knn_cv = map(house_folds$train, 
+             ~knnreg(price ~ lotSize + stand_ln_age + stand_livingArea + stand_ln_pctCollege + bedrooms + fireplaces + bathrooms + rooms + heating + fuel + centralAir,
+                     data = ., k=25))
+
+
+  # Map the RMSE calculation over the trained models and test sets simultaneously
+  errs_baseline = map2_dbl(baseline_cv, house_folds$test, modelr::rmse)
+  errs_linear = map2_dbl(linear_cv, house_folds$test, modelr::rmse)
+  errs_knn = map2_dbl(knn_cv, house_folds$test, modelr::rmse)
+
+  # Average RMSE across folds 
+  baseline_rmse_cv = mean(errs_baseline)
+  linear_rmse_cv = mean(errs_linear)
+  knn_rmse_cv = mean(errs_knn)
+
+  #Table of RMSEs for Comparison
+  df_rmse2 <- data.frame(Baseline = baseline_rmse_cv)
+  df_rmse2[2] <- data.frame(Linear = linear_rmse_cv)
+  df_rmse2[3] <- data.frame(KNN = knn_rmse_cv)
+  df_rmse2 <- setattr(df_rmse2, "row.names", c("RMSE"))
+  stargazer(df_rmse2, type = "text", summary=FALSE,
+          title = "Mean RMSE Comparison after Cross-Validation")
+
+
+```
+I started with the baseline ("medium") model and applied feature engineering (transformations and interactions) to develop a more accurate model using the training data. The goal was to reduce the RMSE of the model when applied to the test set. First, I log-transformed price, livingArea, landValue, age, and pctCollege variables. Only the log-transformed pctCollege and age variables reduced the RMSE for test data prediction compared to the "medium" model baseline, so I kept ln_pctCollege and ln_age among the covariates. Notably, these transformations resulted in a significant reduction in RSME (over $500). The log-transformed livingArea and landValue variables provided no improvement in model fit on the test data, as measured by RMSE, so I left these out. Next, I added interactions among covariates that I believed had cross-referential information within one another. I added seven interaction terms among covariates I suspected contained co-informative variation (e.g. lotsize:landValue).
+
+For the K-Nearest Neighbors (KNN) model, I included the exact same covariates as in the custom linear model, excluding interaction terms. I standardized the covariates with large differences in scale (age, livingArea, and pctCollege), while preserving their log-transformations. The standardization reduced RMSE in the KNN model on the test data by about $2,000, showing the importance of standardization in KNN. 
+
+The linear model produced the lowest RMSE on the testing dataset. *In one instance of the train/test split*, the linear model produced an RMSE of 54,958 dollars, which was by far the lowest error. The Baseline produced a much higher RMSE of 67,650 dollars, and the KNN model had the worst accuracy with an RMSE of 69,072 dollars. 
+
+To reduce variability in RMSE (accuracy) measurement caused by singular train-test splits, I next applied cross-validation to the housing data, cutting it into 30 separate folds. I mapped the linear model onto each fold, calculated the RMSE for each, and found the average RMSE across the folds. Cross-validation provided a more clear (less variant) depiction of the RMSE model accuracy. The linear model produced the lowest RMSE again. On average, the linear model has an RMSE of about 57,600 dollars, the baseline model has an RMSE of 65,400 dollars, and the KNN model has an RMSE of 64,500 dollars. The cross-validation stabilized the error terms, confirming that the linear model has the lowest RMSE across all models. Moreover, the cross-validation revealed that the RMSE of the KNN and the baseline models are very close to one another in terms of accuracy, both with an RMSE of about 65,000 dollars. 
+
+These results indicate that the linear model will produce predicted housing prices within a error range of about 57,000 dollars, while the baseline and KNN models will predict housing prices with a larger error of about 65,000 dollars. This difference of roughly 8,000 dollars in precision will produce a massive difference in tax revenue estimates for the local tax authority. Therefore, the linear model should be used to estimate housing value for the purposes of assigning a taxable value of local property taxes because it will provide more precise estimates of overall tax revenue from housing in a given time period or over a particular region. Using the model with the lowest RMSE will enable the local taxation authority to forecast its tax revenues with greater precision, which also provides the municipal government a better understanding of the funds it will have available for city projects. For city expenditures earmarked under tax revenues, better planning can be carried out on these projects because a more precise estimate of available earmarked funds will be available under the lower-error linear model. Therefore, the local taxation authority should adopt this new linear home price estimation model and integrate its results into its budget planning. In terms of taxation, the local authority will also be able to take in meta-data on a particular house and understand its taxable value. This is essential when new neighborhoods are receiving permits for building, because the local taxation authority can garner information from the developer on the housing specifications and generate an pro forma estimate of taxable revenue from these future properties based on prior specifications. This will add even more stability to the budget office's forecasts. 
+
+\newpage
+# Problem Three 
+```{r loans, include = FALSE, echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+
+loans <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/german_credit.csv")
+
+ggplot(data=loans, aes(x = Default)) +
+  geom_histogram()
+```
+
+```{r loans1, include=TRUE, echo=FALSE}
+#Bar plot of Default probability by credit history
+loans1 <- loans %>%
+  group_by(history) %>%
+  summarize(default_prob = sum(Default == 1)/n())
+  
+
+ggplot(data=loans1) + 
+  geom_col(mapping = aes(x = history, y = default_prob, fill = history)) +
+  labs(title = "Loan Default Probability by Credit History",
+       x = "Credit History",
+       y = "Default Probability") +
+  theme(legend.position="none")
+
+#Logistic Regression to predict default probability
+logit_default = glm(Default ~ duration + amount + installment + age + history + purpose + foreign, data = loans, family= "binomial")
+
+#Interpret coefficients of Logistic Regression
+coef(logit_default) %>% round(2)
+
+#Predict using logistic regression
+loans$default_predict = predict(logit_default, loans)
+#cor(loans$default_predict,loans$Default)
+#RMSE(loans$Default, loans$default_predict)
+```
+The history variable is categorical, containing three categories (good, poor, and terrible). The logistic regression treats each of these credit history categories as separate regression covariates. The "poor" and "terrible" categories have their own regression coefficients (-1.11 and 01.88, respectively), and the "good" category is represented by the intercept (-0.71). Since only one of these categories can be true for any particular loan, only one will be used for prediction in each loan case. For instance, if a borrower has "good" credit, the "historypoor" and "historyterrible" covariates will be zero, so their coefficients will not be used in prediction. Overall, the logistic regression model produces poor predictions of whether a loan will default. The correlation between predicted default probability and actual defaults is only 0.38. Furthermore, the RMSE of the predictive model is 1.57, which is massive, considering that probabilities range from 0 to 1. The poor predictive ability of the logistic model is due to (1) the fact that predicted probabilities can extend beyond 1, which is impossible for a probability, and (2) strong sample bias in the original data (discussed below).  
+
+Interestingly, as a borrowers credit history goes from good to poor to terrible, the predicted probability of default *decreases*, which is unexpected. You would expect the probability of default to be greater for borrowers with worse credit history. This unusual result is likely due to sample bias. The bank sampled a set of loans that defaulted to create this dataset, and since banks more frequently lend to borrowers with good credit history, the sample of defaulted loans similarly contained mostly loans from borrowers with good credit history. 
+
+In light of this sample bias, this dataset is *not* appropriate for building a predictive model of defaults. Rather, the bank would need to use a dataset that is *representative of all loans*, rather than just sampling a set of defaults (which it matched to a few non-defaults). This sample will results predictions that show borrowers with very bad credit history being the best candidates for loans, since it will predict that these borrowers have a lower default probability. This is backwards. The dataset needs to include non-defaults in addition to defaults that builds a sample that is representative of *all* the bank's loans. 
+
+# Problem Four
+```{r hotels, include = FALSE, echo=FALSE}
+hotels_dev <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/hotels_dev.csv")
+hotels_val <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/hotels_val.csv")
+```
+
+
+```{r models, inclue=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+library(rsample)
+library(lubridate)
+library(MASS)
+library(dplyr)
+library(stargazer)
+
+#Add Transformations + Date/Time Variables
+hotels_dev <- hotels_dev %>%
+    mutate(month = month(arrival_date),
+           day = wday(arrival_date),
+           #summer = ifelse(month>=6 & month<=8, 1, 0),
+           weekend = ifelse(day==1 | day==7, 1, 0),
+           ln_lead = ifelse(lead_time>0, log(lead_time), 0))
+hotels_dev <- subset(hotels_dev, select = -arrival_date)
+
+#Train-Test Split for hotels_dev
+dev_split = initial_split(hotels_dev, prop=0.8)
+dev_train = training(dev_split)
+dev_test = testing(dev_split)
+
+#Baseline 1
+logit1 <- glm(children ~ market_segment + adults + customer_type + is_repeated_guest, data = dev_train, family= "binomial")
+#coef(logit1) %>% round(2)
+
+  #Create Dataset that has Actuals and Predictions (yhat)
+  hotels_dev1 = mutate(dev_train, yhat1 = predict(logit1, dev_train, type='response'))
+  
+  #Plot Classification
+  ggplot(hotels_dev1) + 
+    geom_jitter(aes(x=factor(children), y=yhat1), width=0.1, alpha=0.2) + 
+    labs(title="Baseline 1", y = "P(children | x)", x="children?") + 
+    stat_summary(aes(x=factor(children), y=yhat1), fun='mean', col='red', size=1)
+  
+  #Out-of-Sample Confusion Matrix (test set)
+  phat_test_logit1 = predict(logit1, dev_test, type='response')
+  yhat_test_logit1 = ifelse(phat_test_logit1 > 0.5, 1, 0)
+  confusion_out_logit1 = table(children = dev_test$children, 
+                               yhat1 = yhat_test_logit1)
+
+
+#Baseline 2
+logit2 <- glm(children ~ . - month - day - weekend - ln_lead, data = dev_train, family= "binomial")
+#coef(logit2) %>% round(2)
+
+  #Create Dataset that has Actuals and Predictions (yhat)
+  hotels_dev2 = mutate(dev_train, yhat2 = predict(logit2, dev_train, type='response'))
+  #Plot Classification
+  ggplot(hotels_dev2) + 
+    geom_jitter(aes(x=factor(children), y=yhat2), width=0.1, alpha=0.2) + 
+    labs(title="Baseline 2", y = "P(children | x)", x="children?") + 
+    stat_summary(aes(x=factor(children), y=yhat2), fun='mean', col='red', size=1)
+
+
+  #Out-of-Sample Confusion Matrix (test set)
+  phat_test_logit2 = predict(logit2, dev_test, type='response')
+  yhat_test_logit2 = ifelse(phat_test_logit2 > 0.5, 1, 0)
+  confusion_out_logit2 = table(children = dev_test$children, 
+                               yhat2 = yhat_test_logit2)
+  
+
+#Custom Model 3
+logit3 <- glm(children ~ . -ln_lead + previous_cancellations*previous_bookings_not_canceled + day*total_of_special_requests + stays_in_weekend_nights*stays_in_week_nights + day*average_daily_rate + month*day + month*weekend + lead_time*month + adults*stays_in_week_nights + days_in_waiting_list*lead_time + day*total_of_special_requests + weekend*total_of_special_requests +  (total_of_special_requests + adults + customer_type + is_repeated_guest + reserved_room_type + meal + booking_changes + required_car_parking_spaces + market_segment)^2, data = dev_train, family= "binomial")
+
+
+  #Create Dataset that has Actuals and Predictions (yhat)
+  hotels_dev3 = mutate(dev_train, yhat3 = predict(logit3, dev_train, type='response'))
+  #Plot Classification
+  ggplot(hotels_dev3) + 
+    geom_jitter(aes(x=factor(children), y=yhat3), width=0.1, alpha=0.2) + 
+    labs(title="Custom Linear Model", y = "P(children | x)", x="children?") + 
+    stat_summary(aes(x=factor(children), y=yhat3), fun='mean', col='red', size=1)
+
+  #Out-of-Sample Confusion Matrix (test set)
+  phat_test_logit3 = predict(logit3, dev_test, type='response')
+  yhat_test_logit3 = ifelse(phat_test_logit3 > 0.5, 1, 0)
+  confusion_out_logit3 = table(children = dev_test$children, 
+                               yhat3 = yhat_test_logit3)
+  
+#coef(logit3)
+
+#Compare Measure Out-of-Sample Performance 
+    #Confustion Matrices
+    confusion_out_logit1
+    confusion_out_logit2
+    confusion_out_logit3
+    
+    #Overall % accuracy
+    acc1 <- sum(diag(table(children = dev_test$children, 
+                  yhat1 = yhat_test_logit1))) / length(dev_test$children)
+    acc2 <- sum(diag(table(children = dev_test$children, 
+                  yhat2 = yhat_test_logit2))) / length(dev_test$children)
+    acc3 <- sum(diag(table(children = dev_test$children, 
+                  yhat3 = yhat_test_logit3))) / length(dev_test$children)
+    #Misses Count
+    misses1 = length(which(dev_test$children != yhat_test_logit1))
+    misses2 = length(which(dev_test$children != yhat_test_logit2))
+    misses3 = length(which(dev_test$children != yhat_test_logit3))
+    
+    #Create Table of Accuracy and Misses
+    df_acc <- data.frame(Baseline_1 = acc1)
+    df_acc[2] <- data.frame(Baseline_2 = acc2)
+    df_acc[3] <- data.frame(Custom = acc3)
+    df_acc[2,] <- c(misses1,misses2,misses3)
+    df_acc <- setattr(df_acc, "row.names", c("Accuracy","Misses"))
+    stargazer(df_acc, type = "text", summary=FALSE,
+          title = "Overall Accuracy and Misses by Model")
+
+
+```
+\newpage 
+The first baseline model is very bad because it predicts that *all* reservations are adults-only (no children). The second baseline model is considerably better. 
+
+I used manual *Forward Selection* to develop a new logistic regression model. I used the second baseline model as my *working model* and iteratively added small changes (interactions, transformations, and new date/time variables) to determine which additions improved classification accuracy. If a small change improved accuracy, I kept it. If it reduced it, I did not include it. For instance, I tried a log-transformation to lead-time, created month/day/weekend variables from the arrival-date information, applied a quadratic form to a number of variables, and interacted variables that seemed to have co-informative behavior (e.g. day*daily_average_rate). 
+
+In a particular train/test split (which may differ from the knitted output in the table above), my model slightly out-performed the second baseline model as a result of my feature-engineering. In a particular train/test split, baseline1 model had an overall accuracy of 91.95% (724 misses), the baseline2 model had overall accuracy of 93.69% (568 misses), and my model had overall accuracy of 93.98% (541 misses). My model misidentified 27 less observations than the medium baseline. 
+
+This is evident in the plots, which demonstrate an improvement mainly in the identification of the presence of children (right-hand column) under my model, compared to the baseline. This is confirmed by the confusion matrix, which shows that my model correctly identified 289 occasions of children being brought, whereas the baseline only identified 259 such occasions. This is an important improvement because it would allow the hotel to better anticipate the presence of children and therefore better prepare. 
+
+## Model Validation: Step 1 - ROC Curve 
+```{r validation1, inclue=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+library(foreach)
+
+#Add Transformations + Date/Time Variables
+hotels_val <- hotels_val %>%
+    mutate(month = month(arrival_date),
+           day = wday(arrival_date),
+           #summer = ifelse(month>=6 & month<=8, 1, 0),
+           weekend = ifelse(day==1 | day==7, 1, 0),
+           ln_lead = ifelse(lead_time>0, log(lead_time), 0))
+hotels_val <- subset(hotels_val, select = -arrival_date)
+
+#ROC Curve for Custom Model
+phat_val_logit3 = predict(logit3, hotels_val, type='response')
+
+thresh_grid = seq(0.95, 0.05, by=-0.005)
+roc_curve_logit3 = foreach(thresh = thresh_grid, .combine='rbind') %do% {
+  yhat_val_logit3 = ifelse(phat_val_logit3 >= thresh, 1, 0)
+
+  # FPR, TPR for linear model
+  confusion_out_logit3 = table(y = hotels_val$children, yhat = yhat_val_logit3)
+  out_logit3 = data.frame(model = "Custom Logit",
+                       TPR = confusion_out_logit3[2,2]/sum(hotels_val$children==1),
+                       FPR = confusion_out_logit3[1,2]/sum(hotels_val$children==0))
+  
+  rbind(out_logit3)
+} %>% as.data.frame()
+
+ggplot(roc_curve_logit3) + 
+  geom_line(aes(x=FPR, y=TPR)) + 
+  labs(title="ROC Curve: Custom Logit Model") +
+  theme_bw(base_size = 10)
+
+```
+
+## Model Validation: Step 2 
+```{r validation2, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+library(foreach)
+
+
+#Create 20 folds of hotels_val
+K=20
+
+#Create a new dataset that has Predicted Child Probabilities AND Folds 
+hotels_val1 = hotels_val
+hotels_val1 = mutate(hotels_val, child_hat = predict(logit3, hotels_val, type='response')) #Predictions
+
+hotels_val1 <- hotels_val1 %>%
+  mutate(fold_id = rep(1:K, length=nrow(hotels_val)) %>% sample) #Folds
+
+#Sum predicted probabilities (child_hat) and actuals (children) by fold
+comparison <- hotels_val1 %>%
+  group_by(fold_id) %>%
+  summarize(sum_prob = sum(child_hat),
+            sum_actual = sum(children))
+
+ggplot(data=comparison) +
+  geom_point(mapping = aes(x = sum_prob, y = sum_actual)) +
+  geom_abline(intercept = 0, slope = 1) +
+  labs(x = "Predicted", y = "Actual") +
+  scale_x_continuous(limits = c(0,35)) + 
+  scale_y_continuous(limits = c(0,35))
+
+```
+My model does fairly well at predicting the total number of bookings with children in each fold of 250 bookings. In the graph (which may be different here since the knitting procedure enacted a new set of folds), the predicted number of bookings with children per 250 bookings in each of 20 folds is plotted against the actual number of bookings with children. If the model predicted bookings perfectly, all the points would fall on the 45-degree line through the plot. While the points deviate from this line, the deviations are small in magnitude. For instance, for the gold with 15 actual bookings with children has a predicted number of about 17.7, only off by about 3 bookings. The most deviating estimation is for the point with about 16 actual bookings with children, for which the model predicted about 22.5, over-estimating by about 8.5 bookings. The rest of the predictions have a lower variance than this, and the model seems to perform better for folds with higher actual numbers of bookings with children. For instance the cluster in the top-right of the plot is tighter to the diagonal. Again, this analysis is based on a particular set of folds from the iteration done prior to final knitting. However, across different fold arrangements, the model consistently produces estimates that do not deviate significantly from the perfect prediction line. Generally, deviations are lower than 10 child-presence cases per 250.
+
+Therefore, if the hotel used this model, they would generally be predict within 10 bookings of the actual bookings with children for every 250 bookings, a minimum accuracy of about 96.6%, which is highly valuable. This is reflective of the accuracy measured in the train/test analysis in the Model Building part of the problem. Overall, this high-accuracy classification model will allow the hotel to plan in advance for children being present in the facilities. It may want to order more kids' meals for the kitchen, add an extra janitor during these days, bring in an extra concierge for kids-related activities, and clean and secure the pool area. By knowing how many children the hotel can generally expect in any particular period, the hotel can better plan, budget, and customize hotel activities to its own financial benefit and do the benefit of its guests.
