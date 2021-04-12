@@ -124,6 +124,7 @@ linear = lm(price ~ lotSize + ln_age + livingArea + ln_pctCollege + bedrooms +
 		data=saratoga_train)
 linear_predict = predict(linear, data.frame(saratoga_test))
 
+
 #Forward Selection Using "Medium" as Starting-Point
 #forward = step(baseline, direction='forward',
 #  scope = ~(lotSize + age + livingArea + pctCollege + bedrooms + 
@@ -192,7 +193,9 @@ knn_cv = map(house_folds$train,
   stargazer(df_rmse2, type = "text", summary=FALSE,
           title = "Mean RMSE Comparison after Cross-Validation")
 
-
+stargazer(baseline, linear, type='text', 
+          column.labels = c("Baseline", "Linear"),
+          title = "Housing Price Model Comparison")
 ```
 I started with the baseline ("medium") model and applied feature engineering (transformations and interactions) to develop a more accurate model using the training data. The goal was to reduce the RMSE of the model when applied to the test set. First, I log-transformed price, livingArea, landValue, age, and pctCollege variables. Only the log-transformed pctCollege and age variables reduced the RMSE for test data prediction compared to the "medium" model baseline, so I kept ln_pctCollege and ln_age among the covariates. Notably, these transformations resulted in a significant reduction in RSME (over $500). The log-transformed livingArea and landValue variables provided no improvement in model fit on the test data, as measured by RMSE, so I left these out. Next, I added interactions among covariates that I believed had cross-referential information within one another. I added seven interaction terms among covariates I suspected contained co-informative variation (e.g. lotsize:landValue).
 

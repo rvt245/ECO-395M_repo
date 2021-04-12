@@ -1,0 +1,382 @@
+---
+title: "DMSL Exercise 3"
+author: "Robert Toto"
+date: "4/9/2021"
+output: pdf_document
+---
+
+# Problem One
+## Part 1
+I high correlation and “significant” regression between police and crime does not tell you anything about causality. First, these variables are endogenously related (you may increase police to respond to more crime), so the direction of causality (if any) is unclear. Second, cities are heterogenous in their characteristics (income, unemployment, density, cost-of-living, etc.), so aggregating data from many cities can blur actual trends. In order to isolate a causal link between “more cops” and “crime,” you need to remove the endogeneity between them. 
+
+## Part 2
+The researchers at UPenn used a reduced-form instrumental variable analysis (simply regress the instrument on the outcome) technique to estimate the implied exogenous causal effect of “more cops” on “crime.” They cleverly used “terror alerts” as an exogenous instrument to do so. “Terror alerts” are correlated with “more cops” (since there is increased police presence on terror alert days), but they are independent of the “crime.” Therefore, you can roughly estimate the exogenous effect of “more cops” on crime using only the information contained in the correlation between “more cops” and “terror alerts” by regressing “crime” on “terror alerts” because this information is exogenous to the outcome (“crime”). 
+
+The results in Table 2 show that daily crimes decrease by about 7 crimes when there is a terror high alert day, versus when there is not such an alert. Since high alert days are correlated with more police presence, we can interpret this as better evidence of a causal effect of “more cops” on lowering “crime.” In the second regression, the effect controls for metro ridership, but here is still a large and significant effect (about 6 less crimes per day). 
+
+## Part 3
+The authors controlled for metro ridership because on terror alert days, many streets are closed off, forcing more people to commute underground. The effect seems to be an *increase* in crime, maybe because it is easier to get away with crimes in the metro stations than on the street. Since metro ridership is a driver of crime during high alert days, it is necessary to control for this affect in order to better isolate the effect of “more cops” on “crime.” 
+
+Controlling with metro ridership *captures* the portion of crime reduction that is solely attributed to increased police presence, and separate from the portion of crime reduction that is attributed to increased metro ridership. 
+
+## Part 4
+The model in the first column uses interactions between the whether it is a terror high alert day and whether the crime is occurring in the national mall district (or other districts). This is done using two interaction terms. The national mall experiences much more police increase on high alert days because most of the important assets the police need to protect are located in the national mall district (monuments, politicians, etc). This more nuanced analysis tells us that crime is reduced more in the national mall district than in other districts if it is a high alert day. This makes sense, given the higher police presence in that district. Crimes are reduced by about 2.6 in the national mall on high alert days versus only by 0.57 in other districts on high alert days. The conclusion is that there is interactive information in police presence from high alert days and the districts in DC in terms of an effect on crime. The effect of high alert days (police presence) on crime varies by district, and the more police presence in a district there is (like in the national mall), the lower the crimes will be. 
+
+\newpage
+# Problem Two
+## Overview
+In the United States, buildings can be built or retrofitted to be “green certified” for reducing energy and water use, reducing CO2 emissions, and minimizing environmental impacts. Buildings can bet certified as “LEED” or “EnergyStar” and attract environmentally-conscious business and tenants as well as receiving generous tax benefits. For commercial residences, it is of high interest to know whether tenants are willing to pay a premium to live in a “green” certified building. If true, there is an economic incentive to build more green buildings so properties can earn more profit with the added benefit of reducing environmental harm. This analysis seeks to determine the premium properties earn in revenue per square foot per year by having a green certified building. 
+
+## Data and Model
+To assess the revenue premium of a green certified building, I used a dataset of 7,894 commercial rental properties in the United States, 685 of which are green certified as either LEED or EnergyStar. I used forward stepwise selection to fit a linear regression model to predict the revenue per square foot per year (hereon called “revenue”) using covariates related to each building’s physical attributes (e.g. age, renovations, and quality rating), nearby regional attributes (e.g. weather and fuel costs), and green certification. I collapsed the market for LEED and EnergyStar certifications into a single binary covariate for “green certification.” Figure 1 plots the revenue data across clusters, comparing green certified buildings to non-green-certified buildings. This visualization indicates that green certification rases the base revenue level for a building because there are very few green certified buildings with revenue below $1000 in the same clusters where there are many non-green certified buildings below this level. This supports the hypothesis that green certification raises revenue and shows that it may only do so for lower-earning buildings. This creates the expectation that the model will find a positive revenue effect from certification. Before building the model, I also transformed the size variable by converting it to a z-score in order to normalize and scale down its large values and prevent overweighting by size in the regression since most other variables report much smaller values. To build the model, I began with a baseline linear regression model using six core revenue drivers (size, employee growth, stories, age, amenities, and green certification) with no interactions. I fit this baseline model to a training set of the original data to determine and measured the out-of-sample root mean squared error (“RMSE”) on the test data. Using the baseline model as a starting point, I then use forward selection to incorporate the remaining twelve predictor variables in the dataset, allowing for interactions. I compared the out-of-sample RMSE of the baseline and the forward selection (“forward”) model. I then used cross-validation to separate the dataset into 30 distinct folds and re-fit both models to the training fold datasets. I averaged the training set RMSE of both models across the cross-validated folds to determine a smoother estimate of the out-of-sample performance. These cross-validated errors were then compared to check whether the forward selection outperformed the baseline model. 
+
+## Results
+The forward selection method resulted in a linear regression containing the original six covariates of the baseline model, plus eight additional covariates and 35 interaction terms (Table 1). The forward model produced an R2 of 0.592, whereas the baseline produced an R2 of only 0.043. With the addition of covariates and interactions by the forward model, the coefficients of the original six baseline covariates changed. In one case, the covariate (employee growth) went from having a slightly negative effect on revenue to a positive effect. The coefficient for green certification in the baseline model was $121.79, and the coefficient for green certification in the forward model was greater at 328.28. In the latter case, this indicates that attaining a green certification for a building is associated with an $328 increase in revenue per square foot per year, holding all else fixed. The cross-validated RMSE of the forward model ($989) was lower than that of the baseline model ($1,513). Twenty-two of the covariates in the forward model were significant at the 0.05 level. Among these is the amount of heating days (hd_total07), which had a positive effect on revenue, while the number of cooling days (cd_total_07) did not have a significant effect. This may indicate that the sample includes many buildings that do not use electric heating. 
+
+(**Note that these values will change slightly when the PDF is “knitted” in R, which will run a new cross-validation. Therefore, the values reported in the Tables below may not exactly those reported in this narrative report).
+
+## Conclusion
+The inclusion of 35 interaction terms indicates that many of the variables pertaining to property values contain valuable cross-referential information with other variables. For instance, size and electricity costs were interacted to extract the predictive information on revenue explained by the covariation of these variables. The R2 of the forward model was over 10 times larger than that of the baseline model, indicating that the additional covariates and interactions were necessary to explain a larger amount of the variation in revenue. This improvement is reflected by the forward model’s outperformance of the baseline for out-of-sample prediction (lower RMSE). The coefficient for green certification of positive $328 in the forward model supports the supposition that having a green certification provides a rental earnings premium for property owners. I further analysis could use quantile regression to observe the impact of certification on revenue at different ranges of revenue. Figure 1 indicates that green certification may only raise revenue for low-earning buildings. This implies that the $328 effect may actually be greater for low-earning buildings and lower for high-earning buildings. One reason this could be true is that high-earning buildings raise most of their revenue through features and amenities that far outweigh the green certification effect. For instance, a high-rise luxury apartment may not need a green certification to raise revenue and any effect from doing so would be dwarfed by the luxury premium paid by tenants. 
+
+```{r build_setup, include=FALSE, echo=FALSE}
+build <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/greenbuildings.csv")
+
+library(tidyverse)
+library(ggplot2)
+library(rpart)
+library(rpart.plot)
+library(rsample)
+library(mosaic)
+library(modelr)
+library(parallel)
+library(FNN)
+library(class)
+library(stargazer)
+library(purrr)
+library(caret)
+
+# Create revenue per sqft per year variable
+build <- mutate(build, rev = Rent*leasing_rate)
+# Create green certified variabel by combining LEED and EnergyStar
+build <- mutate(build, green_cert = ifelse(LEED==1 | Energystar==1, 1, 0))
+
+#Transform features
+build <- mutate(build, size_zscore = zscore(size))
+
+#Train-Test Split
+build_split = initial_split(build, prop = 0.8)
+build_train = training(build_split)
+build_test = testing(build_split)
+```
+
+```{r build1, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#Create a Baseline Regression Model 
+baseline = lm(rev ~ size_zscore + empl_gr + stories + age + amenities + green_cert, data=build_train)
+baseline_predict = predict(baseline, data.frame(build_test))
+baseline_rmse <- rmse(baseline, build_test)
+baseline_rmse
+
+#Forward Selection
+forward = step(baseline, direction='forward',
+  scope = ~(size_zscore + empl_gr + stories + age + amenities + green_cert + renovated + class_a + class_b + net + cd_total_07 + hd_total07 + total_dd_07 + Precipitation + Gas_Costs + Electricity_Costs + cluster_rent*cluster)^2)
+forward
+forward_predict = predict(forward, data.frame(build_test))
+forward_rmse = rmse(forward, build_test)
+
+#baseline_rmse
+#forward_rmse
+```
+
+```{r build2, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+##-----------Now, use Cross Validation-----------##
+
+#K-Fold Cross-Validation
+build_folds <- crossv_kfold(build, k=30)
+
+#Baseline CV 
+baseline_cv = map(build_folds$train,
+    ~lm(rev ~ size_zscore + empl_gr + stories + age + amenities + green_cert, data= .))
+#Forward CV
+forward_cv <- map(build_folds$train,
+                  ~lm(rev ~ size_zscore + empl_gr + stories + age + amenities + 
+    green_cert + cluster_rent + cd_total_07 + class_a + class_b + 
+    cluster + Electricity_Costs + hd_total07 + Precipitation + 
+    size_zscore:cluster_rent + size_zscore:stories + amenities:green_cert + 
+    stories:class_a + size_zscore:class_b + size_zscore:class_a + cluster_rent:cluster + 
+    size_zscore:cluster + empl_gr:class_a + size_zscore:age + age:green_cert + 
+    empl_gr:Electricity_Costs + size_zscore:Electricity_Costs + age:cluster_rent + 
+    age:Electricity_Costs + age:class_a + cluster_rent:hd_total07 + 
+    cd_total_07:hd_total07 + Electricity_Costs:hd_total07 + cd_total_07:Electricity_Costs + 
+    cluster_rent:class_b + age:Precipitation + cd_total_07:class_a + 
+    size_zscore:cd_total_07 + stories:cd_total_07 + amenities:Electricity_Costs + 
+    cd_total_07:class_b + cluster_rent:cd_total_07 + hd_total07:Precipitation + 
+    class_a:Electricity_Costs + class_b:hd_total07 + cluster_rent:class_a + 
+    stories:hd_total07 + Electricity_Costs:Precipitation + size_zscore:cluster_rent:cluster, data = .))
+
+
+
+#plot of the Data
+greenfacet.names = c('1' = "Green Certified", 
+                  '0' = "Not Green Certified")
+ggplot(data=build) +
+  geom_point(mapping = aes(x=cluster, y=rev)) +
+  facet_wrap(~green_cert, labeller = as_labeller(greenfacet.names)) + 
+  labs(title = "Figure 1: Revenue for each Cluster by Green Certification",
+       y = "Revenue per sqft per year",
+       x = "Building Cluster Group") +
+  scale_y_continuous(limits = c(0,5000))
+
+  #Table of Models 
+  stargazer(baseline, forward, type='text', 
+          column.labels = c("Baseline", "Forward"),
+          title = "Table 1: Revenue Model Comparison")
+
+  # Map the RMSE calculation over the trained models and test sets simultaneously
+  errs_baseline = map2_dbl(baseline_cv, build_folds$test, modelr::rmse)
+  errs_forward = map2_dbl(forward_cv, build_folds$test, modelr::rmse)
+
+  # Average RMSE across folds 
+  baseline_rmse_cv = mean(errs_baseline)
+  forward_rmse_cv = mean(errs_forward)
+
+
+  #Table of RMSEs for Comparison
+  df_rmse2 <- data.frame(Baseline = baseline_rmse_cv)
+  df_rmse2[2] <- data.frame(Forward = forward_rmse_cv)
+  rownames(df_rmse2)<-c("RMSE")
+  stargazer(df_rmse2, type = "text", summary=FALSE,
+          title = "Table 2: Mean RMSE Comparison after Cross-Validation")
+
+```
+\newpage
+
+# Problem Three
+## Overview
+The ability to predict housing prices is of great interest to city planners, investors, home owners, and real estate sellers. In California, the real estate market varies substantially by region and is subject to strong price swings due to a highly active market. Professional appraisal services can be expensive and difficult to scale. If one needs a broad view of the price landscape, an appraiser is infeasible, and it is cheaper to model home values using available data on homes, regions, and demographics. The online company, Zillow, uses a proprietary algorithm to model home values in this way for buyers and sellers. I will try to use existing data on homes in California to similarly create a predictive model of median home value across California’s geographic layout. It beneficial to know have a good predictive model, but even more useful to real estate stakeholders to be able to visualize these values on a map of California. A family considering moving to California or an investor considering future real estate growth potential would need special price information, which is the goal of the following model. 
+
+## Data and Model
+The dataset combines U.S. Census data on household income, population, and home count data with real estate data on home attributes, like age and room counts, in California. Each observation includes geographic coordinates (latitude and longitude) to link the census demographics to home characteristics in geo-space in the state of California. This enables the use of mapping tools. Median house value is also given in the dataset to be used as training and testing data for the predictive model. The distribution of median house values is given in Figure 1, with an average of $200,000. Notably, this dataset has very few variables, so value prediction may be subject to large error (root mean squared error; RMSE), but the ability to show these predictions over geographical space remains valuable. Due to the small number of predictor variables (only five) in the dataset, a tree model may be appropriate. However, I have employed a forward selection linear regression model due the small resulting RMSE. A further analysis could compare a tree to the forward selection. 
+
+To build the forward selection model, I began with a baseline model using longitude, latitude, age, room counts, population, household counts, and median income. I used all the available covariates for prediction because there were very few covariates in the dataset and because each covariate in the baseline model was significant at the 0.01 level. This baseline model fit a linear regression to median house value (“value”) data in the training dataset produced using an 80/20 train-test split. 
+
+I used this baseline model as the starting point for the forward selection linear regression model, which added to the baseline by allowing for interactions. The step-wise forward selection process fit a linear regression model to the training data, adding 25 interactions. The interactions were included because the effects of the many demographic and home covariates on home value vary depending on the values of other covariates. This is especially true for the longitude and latitude covariates. In California, high-income individuals sometimes live in extremely expensive neighborhoods (Bellaire) and sometimes live in moderately-expensive neighborhoods un rural, non-coastal areas. Therefore, the effect of income on home value varies with geography and therefore should be interacted with latitude and longitude in the model. Since coastal homes tend to be more expensive, interactions with longitude are especially important since as one moves eastward from the coast, home values (prices) generally decline. This intuition comes from the visualization in Figure 2A (mapped) and Figure 2B (unmapped) of median home values across California. Finally, I split the original data into 30 cross-validated folds and ran the baseline and forward models over each fold to find a more accurate RMSE for both models. 
+
+## Results
+The forward-selection model produced an out-of-sample root-mean-squared-error (“RMSE) of $67,106, while the baseline model produced a higher RMSE of $72,263 (Table 1). The forward model explained more variation in median home value than the baseline model, evidenced by the greater R2 of 0.717, compared to the baseline R2 of 0.612 (Table 2). Table 2 also shows the coefficients in each model, demonstrating that 22 of the 25 interaction terms in the forward model are significant at the 0.01 level. The interactions of age with room count and of population with households were not significant. The interaction of room count with households was significant at the 0.05 level. The inclusion of the interaction terms resulted in the switching of the sign for the coefficients of bedroom counts, population, median income, and latitude between the baseline and forward models. For instance, in the baseline model, a one-degree increase in latitude was associated with a lowered house value of $45,663. This would indicate that homes are less valuable as you move North in California. However, the associated effect in the forward model was an increase in home value by $89,804. Latitude was interacted with seven other covariates in the forward model because there is covarying information in latitude with those other variables that influence home value. The importance of these interactions can be understood by viewing Figure 2B, which overlays median home value onto California, revealing high value clusters in cities in specific geographic space. 
+
+Figure 3 shows the predicted home values produced by the forward model. Compared to Figure 2B (actuals), the forward model appears to have under-valued many homes in San Francisco and Los Angeles, demonstrated by the lower frequency of yellow points in the Figure 3 (predicted), compared to Figure 2B. The plot of prediction errors in Figure 4 and Figure 5 support this, showing that errors are mainly negative (red) in urban areas, which are under-valuations. There is a clear cluster of under-valuation in northeast California. The histogram of errors in Figure 6 shows that errors are evenly distributed between over- and under-valuation. 
+
+(**Note that these values will change slightly when the PDF is “knitted” in R, which will run a new cross-validation. Therefore, the values reported in the Tables below may not exactly those reported in this narrative report).
+
+## Conclusion
+The forward selection model is a large improvement on the baseline model. The forward model has an average mis-pricing (RMSE) of about $67,000 (Table 2). This is a somewhat large portion of a given home value, given that the average of the median house value data is about $200,000 (Figure 1). However, the forward model is still a large improvement on the baseline model and can be used for rough prediction. As demonstrated in the similarities of Figure 2 and Figure 3 (actuals and predicted house values), the interactions with latitude and longitude are critical to this model. Home values are greater at certain urban clusters, which are designated by the geographical coordinates. This is likely a major reason the forward model has better out-of-sample predictions than the baseline model. The model has drawbacks, however, as demonstrated by the cluster of large errors in major cities and the cluster of under-valuations in the northeast part of the state in Figure 4 and Figure 5. Overall, this model provides a good general idea of home valuations across the California geo-space with some regions proving difficult value. This is likely due the very small number of predictor variables. 
+
+\newpage
+```{r CAhouse_setup, include=FALSE, echo=FALSE}
+CAhouse <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/CAhousing.csv")
+
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(gamlr)
+library(scales)
+
+#Transform Variables
+CAhouse <- mutate(CAhouse, 
+                  medianIncome = log(medianIncome),
+                  log_val = log(medianHouseValue),
+                  totalRooms = log(totalRooms),
+                  totalBedrooms = log(totalBedrooms),
+                  population = log(population),
+                  log_houses = log(households)
+                  )
+
+#Distribution of prices
+values <- ggplot(CAhouse, aes(x=medianHouseValue)) + 
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(medianHouseValue))) +
+  labs(title = 'Figure 1: Distribution of Median House Values in California',
+       x = "Median House Value in $") +
+  scale_x_continuous(labels  = label_number(scale = 1e-3, prefix = "$", suffix = "K", accuracy = 1))
+
+#Train-Test Split
+CAhouse_split = initial_split(CAhouse, prop = 0.8)
+CAhouse_train = training(CAhouse_split)
+CAhouse_test = testing(CAhouse_split)
+```
+
+```{r CAhouse_model, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#Create a Baseline Regression Model 
+base = lm(medianHouseValue ~ longitude + latitude + housingMedianAge + totalRooms + totalBedrooms + population + households + medianIncome, data=CAhouse_train)
+base_predict = predict(base, data.frame(CAhouse_test))
+base_rmse <- rmse(base, CAhouse_test)
+base_rmse
+
+#Forward Selection
+CAforward = step(base, direction='forward',
+  scope = ~(longitude + latitude + housingMedianAge + totalRooms + totalBedrooms + population + households + medianIncome)^2)
+CAforward
+CAforward_predict = predict(CAforward, data.frame(CAhouse_test))
+CAforward_rmse = rmse(CAforward, CAhouse_test)
+
+#base_rmse
+#CAforward_rmse
+```
+```{r CAhouse_cv, include=TRUE, echo=FALSE, message=FALSE}
+##-----------Now, use Cross Validation-----------##
+
+#K-Fold Cross-Validation
+CAhouse_folds <- crossv_kfold(CAhouse, k=30)
+
+#Baseline CV 
+base_cv = map(CAhouse_folds$train,
+    ~lm(medianHouseValue ~ longitude + latitude + housingMedianAge + totalRooms + totalBedrooms + population + households + medianIncome, data= .))
+
+#Forward CV
+CAforward_cv <- map(CAhouse_folds$train,
+                  ~lm(medianHouseValue ~ longitude + latitude + housingMedianAge + 
+    totalRooms + totalBedrooms + population + households + medianIncome + 
+    housingMedianAge:totalBedrooms + housingMedianAge:population + 
+    totalBedrooms:medianIncome + housingMedianAge:medianIncome + 
+    latitude:housingMedianAge + longitude:housingMedianAge + 
+    population:medianIncome + totalRooms:population + totalBedrooms:households + 
+    longitude:latitude + latitude:medianIncome + longitude:medianIncome + 
+    housingMedianAge:totalRooms + totalBedrooms:population + 
+    totalRooms:households + latitude:households + latitude:totalRooms + 
+    latitude:population + housingMedianAge:households + population:households + 
+    households:medianIncome + longitude:population + longitude:households + 
+    longitude:totalRooms + totalRooms:totalBedrooms + latitude:totalBedrooms + 
+    longitude:totalBedrooms, data = .))
+
+#RMSEs
+
+  # Map the RMSE calculation over the trained models and test sets simultaneously
+  errs_base = map2_dbl(base_cv, CAhouse_folds$test, modelr::rmse)
+  errs_CAforward = map2_dbl(CAforward_cv, CAhouse_folds$test, modelr::rmse)
+
+  # Average RMSE across folds 
+  base_rmse_cv = mean(errs_base)
+  CAforward_rmse_cv = mean(errs_CAforward)
+
+  #Table of RMSEs for Comparison
+  df_rmse2 <- data.frame(Baseline = base_rmse_cv)
+  df_rmse2[2] <- data.frame(Forward = CAforward_rmse_cv)
+  rownames(df_rmse2)<-c("RMSE")
+  stargazer(df_rmse2, type = "text", summary=FALSE,
+          title = "Table 1: Mean RMSE Comparison after Cross-Validation")
+  
+#Regression Results
+stargazer(base, CAforward, type='text', 
+          column.labels = c("Baseline", "Forward"),
+          title = "Table 2: Revenue Model Comparison")
+
+
+```
+
+
+```{r CAhouse_plots, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+# A plot of the original data, using a color scale to show medianHouseValue (or log medianHouseValue) versus longitude (x) and latitude (y).
+unmapped <- ggplot(CAhouse) + 
+  geom_point(aes(x=longitude, y=latitude, color=medianHouseValue)) + 
+  scale_color_continuous(type = "viridis",limits=c(14999, 500001)) + 
+  labs(title = "Figure 2A: Unmapped Median Home Values in California (Actual)")
+
+# A plot of your model's predictions of medianHouseValue (or log medianHouseValue) versus longitude (x) and latitude (y).
+CAhouse <- CAhouse %>%
+  mutate(Value_pred = predict(CAforward, CAhouse))
+
+ggplot(CAhouse) + 
+  geom_point(aes(x=longitude, y=latitude, color=Value_pred)) + 
+  scale_color_continuous(type = "viridis",limits=c(14999, 500001))
+
+# A plot of your model's errors/residuals (or log residuals) versus longitude (x) and latitude (y).
+CAhouse <- mutate(CAhouse, errors = Value_pred - medianHouseValue)
+CAhouse <- mutate(CAhouse, error_sign = ifelse(errors>0,1,0))
+
+ggplot(CAhouse) +
+  geom_point(aes(x=longitude, y=latitude, color=errors)) +
+  scale_color_continuous(type = "viridis", limits=c(-100000,100000))
+```
+\newpage 
+```{r CAhouse_map, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggmap)
+library(scales)
+
+
+#Generate a map of the US using Google Map 
+map<-get_map(location='california', zoom=6, maptype = "terrain", source='google',color='color')
+map_zoom<-get_map(location='california', zoom=7, maptype = "terrain", source='google',color='color')
+
+#Plot actual house values on a map
+house_map = ggmap(map) + geom_point(data = CAhouse,
+        aes(x=longitude, y=latitude, color=medianHouseValue)) +
+        scale_color_continuous(type = "viridis",limits=c(14999, 500001)) +
+        labs(title = 'Figure 2B: Mapped Median Home Values in California (Actual)',
+          color = "Median Value") +
+          theme(axis.title.y = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.text.x = element_blank(),
+              axis.text.y = element_blank())
+
+
+#Plot predicted house values on a map
+house_map_pred = ggmap(map) + geom_point(data = CAhouse,
+        aes(x=longitude, y=latitude, color=Value_pred)) +
+        scale_color_continuous(type = "viridis",limits=c(14999, 500001)) +
+        labs(title = 'Figure 3: California Houes Prices (Predicted)',
+          color = "Median Value") +
+          theme(axis.title.y = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.text.x = element_blank(),
+              axis.text.y = element_blank())
+
+
+#Plot errors on a map
+house_map_errors = ggmap(map) + geom_point(data = CAhouse,
+        aes(x=longitude, y=latitude, color=errors)) +
+        scale_color_gradient2(midpoint = 0, low = "red", mid = "cornsilk1", high = "blue", limits=c(-100000,100000)) +
+        #scale_color_gradient2(midpoint = 0, low = "red", mid = "cornsilk1", high = "red") +
+        #scale_color_continuous(type = "viridis", limits=c(-100000,100000)) +
+        labs(title = 'Figure 4: California Houes Prices (prediction errors)',
+          color = "Median Value") +
+          theme(axis.title.y = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.text.x = element_blank(),
+              axis.text.y = element_blank())
+
+house_map_errors_zoom = ggmap(map_zoom) + geom_point(data = CAhouse,
+        aes(x=longitude, y=latitude, color=errors)) +
+        scale_color_gradient2(midpoint = 0, low = "red", mid = "cornsilk1", high = "blue", limits=c(-100000,100000)) +
+        #scale_color_gradient2(midpoint = 0, low = "red", mid = "cornsilk1", high = "red") +
+        #scale_color_continuous(type = "viridis", limits=c(-100000,100000)) +
+        labs(title = 'Figure 5: California Houes Prices Zoomed-In (prediction errors)',
+          color = "Median Value") +
+          theme(axis.title.y = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.text.x = element_blank(),
+              axis.text.y = element_blank())
+
+
+#Report the figures
+values
+unmapped
+house_map
+house_map_pred
+house_map_errors
+house_map_errors_zoom
+ggplot(CAhouse, aes(x=errors)) + 
+  geom_histogram() +
+  geom_vline(aes(xintercept=0)) +
+  labs(title = 'Figure 6: Prediction Errors',
+       x = "Errors (Predicted - Actual) in $") +
+  scale_x_continuous(labels  = label_number(scale = 1e-3, prefix = "$", suffix = "K", accuracy = 1), limits = c(-400000,400000)) 
+```
