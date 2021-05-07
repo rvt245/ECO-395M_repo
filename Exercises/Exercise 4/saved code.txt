@@ -1,0 +1,626 @@
+---
+title: "Exercise 4"
+author: "Robert Toto"
+date: "4/18/2021"
+output: pdf_document
+---
+# Problem 1: Clustering & PCA
+```{r wine_setup, include=FALSE, echo=FALSE}
+wine <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/wine.csv")
+
+library(ggplot2)
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+library(scales)
+
+# Count the wines in each color category 
+  ggplot(wine) +
+    geom_bar(aes(x=color))
+```
+
+```{r wine_clust, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+
+##----------K-means Clustering----------##
+
+# Center and scale the data (only do this for quantitative variables; not ratings, not numerical identifiers, not categorical, not binary)
+X = wine[,(1:11)]
+X = scale(X, center=TRUE, scale=TRUE)
+
+# Extract the centers and scales from the rescaled data (which are named attributes)
+mu = attr(X,"scaled:center") # The means are scaled to 0
+sigma = attr(X,"scaled:scale") #The standard deviations are scaled  1
+
+# Run k-means with 2 clusters and 25 starts
+clust1 = kmeans(X, 2, nstart=25)
+
+# A few plots with cluster membership shown
+# qplot is in the ggplot2 library
+qplot(chlorides, pH, data=wine, color=factor(clust1$cluster))
+qplot(alcohol, density, data=wine, color=factor(clust1$cluster))
+qplot(citric.acid, sulphates, data=wine, color=factor(clust1$cluster))
+qplot(free.sulfur.dioxide, total.sulfur.dioxide, data=wine, color=factor(clust1$cluster))
+
+##----------K-means++ Clustering----------##
+
+# Using kmeans++ initialization
+clust2 = kmeanspp(X, k=2, nstart=25)
+
+clust2$center[1,]*sigma + mu
+clust2$center[2,]*sigma + mu
+
+# Compare versus within-cluster average distances from the first run
+clust1$withinss
+clust2$withinss
+sum(clust1$withinss)
+sum(clust2$withinss)
+clust1$tot.withinss
+clust2$tot.withinss
+clust1$betweenss
+clust2$betweenss
+
+# A few plots with cluster membership shown
+# qplot is in the ggplot2 library
+qplot(chlorides, pH, data=wine, color=factor(clust2$cluster))
+qplot(alcohol, density, data=wine, color=factor(clust2$cluster))
+qplot(citric.acid, sulphates, data=wine, color=factor(clust2$cluster))
+qplot(free.sulfur.dioxide, total.sulfur.dioxide, data=wine, color=factor(clust2$cluster))
+
+# How well do the clusters classify color (red vs white)?
+ggplot(wine) + 
+    geom_jitter(aes(x=factor(color), y=clust2$cluster), width=0.2, alpha=0.2) + 
+    stat_summary(aes(x=factor(color), y=clust2$cluster), fun='mean', col='red', size=1) +
+    labs(title = "K-Means++ Clustering for Wine Color",
+         x = "Wine Color",
+         y = "Cluster")
+  
+
+```
+Since we already know we need 2 clusters, we do not need to optimize K (# of clusters).
+
+[FINISH WRITING THIS UP - NEED TO ADDRESSS THE QUALITY ASPECT --> USE 4 Clusters Instead? ]
+
+```{r wine_pca, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+
+##----------PCA----------##
+#Reduce Dimensions to 2 PC Scores
+pc_X = prcomp(X, rank=1)
+pc_X$rotation
+summary(pc_X)
+
+# Let's make some plots of the shows themselves in 
+# PC space, i.e. the space of summary variables we've created
+wine = merge(wine, pc_X$x[,1], by="row.names")
+wine = rename(wine, Wine = Row.names)
+
+# How well do the clusters classify color (red vs white)?
+ggplot(wine) + 
+    geom_jitter(aes(x=factor(color), y=y), width=0.1, alpha=0.2) + 
+    stat_summary(aes(x=factor(color), y=y), fun='mean', col='red', size=1) +
+  labs(title = "PCA Scores for Wine Color",
+         x = "Wine Color",
+         y = "Cluster")
+
+# principal component regression: color
+wine <- wine%>%
+  mutate(color_code = ifelse(color=="red",1,0))
+lm1 = lm(color_code ~ y, data=wine)
+summary(lm1)
+plot(color_code ~ fitted(lm1), data=wine)
+
+```
+Compare PCA accuracy for categorizing wine color by how well the scores are above zero (white) and below zero (red). It seems like the K-means was a bit more accurate. Compare the jitters. The PCA regression also shows that PCA is worse. 
+
+Talk about variation explained by PCA from the PCA "summary" output. 
+
+\newpage
+# Problem 2: Market Segmentation
+```{r market_setup, include=FALSE, echo=FALSE}
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+market <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/social_marketing.csv")
+
+# Center and scale the data
+X_market = market[,(2:37)]
+X_market = scale(X_market, center=TRUE, scale=TRUE)
+```
+
+```{r market1, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+
+#CLUSTERING#
+##----------Optimal K----------##
+#Elbow plot
+library(foreach)
+k_grid = seq(2, 30, by=1)
+SSE_grid = foreach(k = k_grid, .combine='c') %do% {
+  cluster_k = kmeanspp(X_market, k, nstart=25) #switch out X with new vector for market segmentation data 
+  cluster_k$tot.withinss
+}
+plot(k_grid, SSE_grid) 
+
+##----------Kmeans++ Clustering using K = 10----------##
+
+#Cluster the data
+clust = kmeanspp(X_market, k=5, nstart=25)
+
+#Plot Clusters
+qplot(cooking, food, data=market, color=factor(clust$cluster))
+qplot(health_nutrition, sports_playing, data=market, color=factor(clust$cluster))
+qplot(shopping, fashion, data=market, color=factor(clust$cluster))
+qplot(crafts, art, data=market, color=factor(clust$cluster))
+qplot(eco, outdoors, data=market, color=factor(clust$cluster))
+qplot(politics, current_events, data=market, color=factor(clust$cluster))
+qplot(travel, photo_sharing, data=market, color=factor(clust$cluster))
+qplot(computers, online_gaming, data=market, color=factor(clust$cluster))
+  
+```
+## Choosing the Optimal K
+The elbow demonstrates the trade-off between within-distance (cluster tightness) and complexity. As you increase K, you get improvements in cluster within-distance, which is desirable. However, these improvements are *decreasing*, and as you increase K, you incur a cost of more complexity. If you have too may clusters (very high K), you may be over-fitting by dividing your data into unnecessary categories. The goal is to minimize withing-distance without over-fitting with too many clusters. The optimal K, therefore, is at the *bend* in the elbow, where you are getting decreasing improvements in within-distance while maintaining a manageable (non-excessive) K. 
+
+The optimal cluster count is roughly 7 clusters with a within-cluster sum of squares of about 200,000. However, after plotting the clusters by markets, it appears that a slightly lower cluster amount of 5 is more useful. 
+
+Plotting the custers by related market pairs (e.g., computers and online_gaming) reveals how the five clusters separate individiuals into usable market segments. At five cluster, the within-cluster distance is slightly larger, at 215,000, but the clusters are more informative to the segmentation. 
+
+## Report for NutrientH20
+
+[WRITE A REPORT TO THE NutrientH20 COMPANY SUGGESTING HOW TO SEGMENT ITS ADS BASED ON THE GRAPHS]
+
+
+\newpage
+# Problem 3: Association Rules for Grocery Purchases
+```{r grocery_setup, include=FALSE, echo=FALSE}
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+library(igraph)
+grocer <- read.csv("~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/groceries.txt", header=FALSE)
+```
+
+```{r grocery1, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+# Association rule mining
+str(grocer)
+summary(grocer)
+
+#You'll have to cobble together a few utilities for processing this into the format expected by the "arules" package
+
+
+
+####
+# Data pre-preprocessing
+####
+
+# Turn user into a factor
+playlists_raw$user = factor(playlists_raw$user)
+
+# First create a list of baskets: vectors of items by consumer
+
+# apriori algorithm expects a list of baskets in a special format.
+# it's a bit finicky!
+# In this case, one "basket" of songs per user
+# First split data into a list of artists for each user
+playlists = split(x=playlists_raw$artist, f=playlists_raw$user)
+
+# the first users's playlist, the second user's etc
+# note the [[ ]] indexing, this is how you extract
+# numbered elements of a list in R
+playlists[[1]]  # first user's playlist
+playlists[[2]]  # second user's playlist
+
+## Remove duplicates ("de-dupe")
+# lapply says "apply a function to every element in a list"
+# unique says "extract the unique elements" (i.e. remove duplicates)
+playlists = lapply(playlists, unique)
+
+## Cast this resulting list of playlists as a special arules "transactions" class.
+playtrans = as(playlists, "transactions")
+summary(playtrans)
+
+# Now run the 'apriori' algorithm
+# Look at rules with support > .01 & confidence >.1 & length (# artists) <= 5
+musicrules = apriori(playtrans, 
+	parameter=list(support=.005, confidence=.1, maxlen=2))
+                         
+# Look at the output... so many rules!
+inspect(musicrules)
+
+## Choose a subset
+inspect(subset(musicrules, lift > 7))
+inspect(subset(musicrules, confidence > 0.6))
+inspect(subset(musicrules, lift > 10 & confidence > 0.05))
+
+# plot all the rules in (support, confidence) space
+# notice that high lift rules tend to have low support
+plot(musicrules)
+
+# can swap the axes and color scales
+plot(musicrules, measure = c("support", "lift"), shading = "confidence")
+
+# "two key" plot: coloring is by size (order) of item set
+plot(musicrules, method='two-key plot')
+
+# can now look at subsets driven by the plot
+inspect(subset(musicrules, support > 0.035))
+inspect(subset(musicrules, confidence > 0.6))
+
+
+# graph-based visualization
+sub1 = subset(musicrules, subset=confidence > 0.01 & support > 0.005)
+summary(sub1)
+plot(sub1, method='graph')
+?plot.rules
+
+plot(head(sub1, 100, by='lift'), method='graph')
+
+# export a graph
+sub1 = subset(musicrules, subset=confidence > 0.25 & support > 0.005)
+saveAsGraph(sub1, file = "musicrules.graphml")
+
+```
+
+\newpage
+# Probelm 4: Author Attribution
+```{r author_setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(tm)
+library(gamlr)
+library(glmnet)
+library(SnowballC)
+library(slam)
+library(proxy)
+library(lattice)
+library(purrr)
+library(rsample)
+library(caret)
+library(modelr)
+
+#Define reader function
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+#Create TRAINING Data Corpus
+train_dirs = Sys.glob('~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/ReutersC50/C50train/*')
+file_list = NULL
+labels_train = NULL
+for(author in train_dirs) {
+	author_name = substring(author, first=129)
+	files_to_add = Sys.glob(paste0(author, '/*.txt'))
+	file_list = append(file_list, files_to_add)
+	labels_train = append(labels_train, rep(author_name, length(files_to_add)))
+}
+corpus_train = Corpus(DirSource(train_dirs))
+
+  #Tokenization across all documents in the corpus
+  corpus_train = corpus_train %>% tm_map(., content_transformer(tolower)) %>% 
+        tm_map(., content_transformer(removeNumbers)) %>% 
+				tm_map(., content_transformer(removeNumbers)) %>% 
+				tm_map(., content_transformer(removePunctuation)) %>%
+				tm_map(., content_transformer(stripWhitespace)) %>%
+				tm_map(., content_transformer(removeWords), stopwords("SMART"))
+
+#Create TESTING Data Corpus
+## Same operations with the testing corpus
+test_dirs = Sys.glob('~/UT MA Program/Spring 2021/Data Mining & Statistical Learning/ECO395M/data/ReutersC50/C50test/*')
+file_list = NULL
+labels_test = NULL
+for(author in test_dirs) {
+	author_name = substring(author, first=128)
+	files_to_add = Sys.glob(paste0(author, '/*.txt'))
+	file_list = append(file_list, files_to_add)
+	labels_test = append(labels_test, rep(author_name, length(files_to_add)))
+}
+corpus_test = Corpus(DirSource(test_dirs)) 
+
+  #Tokenization across all documents in corpus
+  corpus_test = corpus_test %>% tm_map(., content_transformer(tolower)) %>% 
+				tm_map(., content_transformer(removeNumbers)) %>% 
+				tm_map(., content_transformer(removePunctuation)) %>%
+				tm_map(., content_transformer(stripWhitespace)) %>%
+				tm_map(., content_transformer(removeWords), stopwords("SMART")) 
+  
+#Create Document-Term Matrix (DTM) for Train and Test sets 
+  DTM_train = DocumentTermMatrix(corpus_train)
+  DTM_train # some basic summary statistics
+  # restrict test-set vocabulary to the terms in DTM_train
+
+##Reduce Sparsity by removing low-frequency terms 
+#Removes terms that have count 0 in >95% of docs.  
+DTM_train = removeSparseTerms(DTM_train, 0.99)
+#Limit Test Set to terms used in training set (after sparsity step)
+DTM_test = DocumentTermMatrix(corpus_test,
+                               control = list(dictionary=Terms(DTM_train)))
+DTM_train 
+DTM_test
+
+#Create blank Outcome Vector
+  # Use string cleaning to 
+y_train = labels_train
+y_test = labels_test
+
+##Weighting: Construct TF IDF weights
+tfidf_train = weightTfIdf(DTM_train)
+tfidf_test = weightTfIdf(DTM_test)
+
+#Convert everything to Matrices and Combine into Train Matrix and Test Matrix
+X_train = as.matrix(tfidf_train)
+Y_train = as.matrix(y_train)
+train <- cbind(Y_train,X_train)
+train <- as.data.frame(train)
+
+X_test = as.matrix(tfidf_test)
+Y_test = as.matrix(y_test)
+test <- cbind(Y_test,X_test)
+test <- as.data.frame(test)
+
+# Turn author into a factor
+train$V1 = factor(train$V1)
+test$V1 = factor(test$V1)
+
+#Add Index to Keep Sorting
+train$ID <- seq.int(nrow(train))
+test$ID <- seq.int(nrow(test))
+
+
+##Dimensionality Reduction
+#PCA on term frequencies
+pca_train = prcomp(X_train, rank = 100, scale=TRUE)
+summary(pca_train)
+pca_test = prcomp(X_test, rank = 100, sclae=TRUE)
+  plot(pca_train) 
+  pca_train$x[,1:2]
+PCA_train <- merge(train, pca_train$x[,1:100], by="row.names")
+  PCA_train <-PCA_train[order(PCA_train$ID),]
+PCA_test <- merge(test, pca_test$x[,1:100], by="row.names")
+  PCA_test <- PCA_test[order(PCA_test$ID),]
+#train_pca = cbind(Y_train,PCA_train)
+#test_pca = cbind(Y_test, PCA_test)
+
+#Remove unnecessary variables
+train_pca <- PCA_train %>% 
+  select(V1, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10, PC11, PC12, PC13, PC14, PC15, PC16, PC17, PC18, PC19, PC20, PC21, PC22, PC23, PC24, PC25, PC26, PC27, PC28, PC29, PC30, PC31, PC32, PC33, PC34, PC35, PC36, PC37, PC38, PC39, PC40, PC41, PC42, PC43, PC44, PC45, PC46, PC47, PC48, PC49, PC50, PC51, PC52, PC53, PC54, PC55, PC56, PC57, PC58, PC59, PC60, PC61, PC62, PC63, PC64, PC65, PC66, PC67, PC68, PC69, PC70, PC71, PC72, PC73, PC74, PC75, PC76, PC77, PC78, PC79, PC80, PC81, PC82, PC83, PC84, PC85, PC86, PC87, PC88, PC89, PC90, PC91, PC92, PC93, PC94, PC95, PC96, PC97, PC98, PC99, PC100)
+test_pca <- PCA_test %>%
+  select(V1, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10, PC11, PC12, PC13, PC14, PC15, PC16, PC17, PC18, PC19, PC20, PC21, PC22, PC23, PC24, PC25, PC26, PC27, PC28, PC29, PC30, PC31, PC32, PC33, PC34, PC35, PC36, PC37, PC38, PC39, PC40, PC41, PC42, PC43, PC44, PC45, PC46, PC47, PC48, PC49, PC50, PC51, PC52, PC53, PC54, PC55, PC56, PC57, PC58, PC59, PC60, PC61, PC62, PC63, PC64, PC65, PC66, PC67, PC68, PC69, PC70, PC71, PC72, PC73, PC74, PC75, PC76, PC77, PC78, PC79, PC80, PC81, PC82, PC83, PC84, PC85, PC86, PC87, PC88, PC89, PC90, PC91, PC92, PC93, PC94, PC95, PC96, PC97, PC98, PC99, PC100)
+
+
+# Look at the loadings
+pca_train$rotation[order(abs(pca_train$rotation[,1]),decreasing=TRUE),1][1:25]
+pca_train$rotation[order(abs(pca_train$rotation[,2]),decreasing=TRUE),2][1:25]
+
+##-----MODELS-----##
+#Multinomial Logistic Regression (outcomes are categorical variables)
+library(nnet)
+##Choose the level of our outcome that we wishto use as our baseline.
+##Specify this in the relevel function
+train_pca$V2 <- relevel(train_pca$V1, ref = "AaronPressman")
+test_pca$V2 <- relevel(test_pca$V1, ref = "AaronPressman")
+
+##Run Multinomial Model using PCA Scores
+ml2 <- multinom(V1 ~ ., MaxNWts = 7550, data = train_pca)
+
+##Predict using multinomial model
+yhat_test = predict(ml2, test_pca, type = 'class')
+xtabs(~ {yhat_test > 0.5} + Y_test)
+boxplot(as.numeric(yhat_test) ~ test_pca$V2)
+yhat <- as.matrix(yhat_test)
+compare <- cbind(Y_test,yhat)
+compare <- as.data.frame(compare)
+compare <- compare %>%
+  mutate(correct = ifelse(V1==V2, 1, 0)) %>%
+   group_by(V1) %>%
+  summarize(pct_accuracy = sum(correct)/50*100)
+#Average Accuracy
+mean(compare$pct_accuracy)
+
+
+##Run multinomial model
+ml1 <- multinom(V2 ~ business + group , MaxNWts = 85100, data = train)
+
+
+##Clustering
+
+##Logit Model
+
+##KNN Model
+library(FNN) 
+knn = knnreg(V1 ~ PC1 + PC2, k = 15, data = train_pca)
+rmse(knn, test_pca)
+knn_predict = predict(knn, test_pca)
+
+##Lasso Multinomial Model (using "glmnet")
+##Dimensionality Reduction
+#PCA on term frequencies
+Xtrain_pca <- PCA_train %>% 
+  select(PC1, PC2, PC3)
+Xtrain_pca <- as.matrix(Xtrain_pca)
+Xtest_pca <- PCA_test %>%
+  select(PC1, PC2, PC3)
+Xtest_pca <- as.matrix(Xtest_pca)
+
+Ytrain <- train_pca %>%
+  select(V2)
+Ytrain <- as.matrix(Ytrain)
+Ytest <- test_pca %>%
+  select(V2)
+Ytest <- as.matrix(Ytest)
+
+library(glmnet)
+fit1 <- glmnet(Xtrain_pca, Ytrain, family = "multinomial")
+plot(fit1, xvar = "lambda", label = TRUE, type.coef = "2norm")
+yhat_test2 = predict(fit1, Xtest_pca, type = "response")
+
+coef(fit1, select='min') 
+plot(coef(fit1))
+
+xtabs(~ {yhat_test2 > 0.5} + Ytest)
+boxplot(as.numeric(yhat_test2) ~ Ytest)
+
+##Lasso Binomial (using gamlr)
+logit1 = cv.gamlr(xtrain_pca, y_train, family='binomial', nfold=10)
+coef(logit1, select='min') 
+plot(coef(logit1))
+yhat_test = predict(logit1, DTM_test, type='response')
+
+xtabs(~ {yhat_test > 0.5} + y_test)
+boxplot(as.numeric(yhat_test) ~ y_test)
+```
+A training and testing corpus is provided to predict authorship of documents. Both corpuses contain 2,500 documents (50 authors by 50 documents each). My first pre-processing was to *tokenize* these corpuses. I used 5 tokenization processes: (1) transform all words to lower-case, (2) remove numbers from the text, (3) remove punctuation from the text, (4) remove/split-on blank spaces, and (5) remove *stop words* (i.e., filler words: is, a, of, been, etc.). 
+
+I then represented these tokens by document using a Document-Term Matrix (for both train and test sets). Each Document-Term Matrix (DTM) contained 2500 documents (50 authors by 50 articles) and 31,423 terms. Inspecting the DTMs revealed that tokenization was successful in producing discrete, sensical words (i.e., access, accounts, agencies, announced, bogus, business, etc). To simplify prediction on the test set, I restricted the token (terms) in the test set to those defined in the training set. 
+
+Since most of these terms only occur in one document, it was essential to keep only the terms that show up across multiple documents, as these will be terms useful for author attribution prediction. Therefore, I removed terms that show up zero times in more than 95% of corpus documents. This step reduced the amount of terms to just 641. 
+
+I next standardized the observations in each DTM using a combination of two weighting techniques: Term-Frequency Weighting (TF) and Inverse-Document Frequency Weighting (IDF). With TF weighting, I accounted for the fact that some documents are longer than others and therefore have greater frequency of certain terms relative to shorter documents. This weighting reduces the impact of long documents' terms to be equivalent to that of shorter documents. Using IDF weighting, I down-weighted certain terms that show up frequently across all documents but that are not actually useful. For instance, since these documents are from corpus of news articles, there will be certain frequent terms that are common to news articles but that are not idiosyncratic to author and therefore should be removed to improve prediction and reduce noise. These weighting methods alter the value assigned to each token in each document in the DTMs and results in matrices of the same size as before but with newly-weighted observations. 
+
+I used Principal Components Analyis (PCA) to reduce the number of term dimensions into 2 principal components scores based on the 641 terms in the DTM. All 2,500 documents are assigned two scores (PC1 and PC2) related to the composition of terms in each document, and documents can then be compared for commonality by how close their scores are. For instance two documents that both have a PC1 score of about -5 and PC2 score of about -4 are very similar documents, whereas documents with very different scores are not common. Using these scores, it is possible to determine which documents are similar to one another and thereby predict authorship of each document using a prediction model. 
+
+```{r author1, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(modelr)
+library(purrr)
+library(caret)
+library(rsample)
+library(parallel)
+library(FNN)
+library(class)
+##
+
+##Dimensionality Reduction
+#PCA on term frequencies
+X = as.matrix(tfidf_train)
+#pca_train = prcomp(X, scale=TRUE)
+pca_train = prcomp(X, rank = 2)
+plot(pca_train) 
+pca_train$x[,1:2]
+# Look at the loadings
+pca_train$rotation[order(abs(pca_train$rotation[,1]),decreasing=TRUE),1][1:25]
+pca_train$rotation[order(abs(pca_train$rotation[,2]),decreasing=TRUE),2][1:25]
+
+##Author Attribution 
+#Use KNN Based on Cosine Distance for train/test prediciton of Author Attribution 
+#Alternatively, use Clustering to cluster the training set, and assign test documents to the nearest cluster 
+
+# KNN Model
+library(FNN)
+library(tm)
+library(gamlr)
+library(SnowballC)
+
+knn = knnreg(y_train ~ DTM_train, k = 25)
+knn_predict = predict(knn, data.frame(saratoga_test))
+
+# lasso logistic regression for document classification
+logit1 = cv.gamlr(tfidf_train, y_train, family='binomial', nfold=10)
+coef(logit1, select='min') 
+plot(coef(logit1))
+yhat_test = predict(logit1, DTM_test, type='response')
+
+xtabs(~ {yhat_test > 0.5} + y_test)
+boxplot(as.numeric(yhat_test) ~ y_test)
+
+# Predictions out of sample
+# Root mean squared error
+baseline_rmse <- RMSE(saratoga_test$price, baseline_predict)
+linear_rmse <- RMSE(saratoga_test$price, linear_predict)
+knn_rmse <- RMSE(saratoga_test$price, knn_predict)
+#Table of RMSEs for Comparison
+df_rmse1 <- data.frame(Baseline = baseline_rmse)
+df_rmse1[2] <- data.frame(Linear = linear_rmse)
+df_rmse1[3] <- data.frame(KNN = knn_rmse)
+df_rmse1 <- setattr(df_rmse1, "row.names", c("RMSE"))
+stargazer(df_rmse1, type = "text", summary=FALSE,
+          title = "RMSE Comparison")
+
+
+##Calculate Cosine Distances between all dimensions 
+# Function to compute cosines similarity between documents
+cosine_sim_docs = function(dtm) {
+	crossprod_simple_triplet_matrix(t(dtm))/(sqrt(col_sums(t(dtm)^2) %*% t(col_sums(t(dtm)^2))))
+}
+# Use function above to create matrix of cosine similarity of ALL documents with ALL documents
+cosine_sim_mat = cosine_sim_docs(tfidf_train)
+
+# Now consider a query document
+content(corpus_train[[17]])
+cosine_sim_mat[17,]
+
+# looks like document 16 has the highest cosine similarity
+sort(cosine_sim_mat[17,], decreasing=TRUE)
+content(train[[16]])
+content(train[[17]])
+
+
+## Look at the first two PCs..
+# We've now turned each document into a single pair of numbers -- massive dimensionality reduction
+pca_train$x[,1:2]
+
+plot(pca_train$x[,1:2], xlab="PCA 1 direction", ylab="PCA 2 direction", bty="n",
+     type='n')
+text(pca_train$x[,1:2], labels = 1:length(corpus_train), cex=0.7)
+
+# Both about "Scottish Amicable"
+content(train[[46]])
+content(train[[48]])
+
+# Both about genetic testing
+content(train[[25]])
+content(train[[26]])
+
+# Both about Ladbroke's merger
+content(train[[10]])
+content(train[[11]])
+
+# Conclusion: even just these two-number summaries still preserve a lot of information
+
+
+# Now look at the word view
+# 5-dimensional word vectors
+word_vectors = pca_train$rotation[,1:5]
+word_vectors[641,]
+
+d_mat = dist(t(word_vectors))
+
+
+
+
+
+# lasso logistic regression for document classification
+logit1 = cv.gamlr(DTM_train, y_train, family='binomial', nfold=10)
+coef(logit1, select='min') 
+plot(coef(logit1))
+yhat_test = predict(logit1, DTM_test, type='response')
+
+xtabs(~ {yhat_test > 0.5} + y_test)
+boxplot(as.numeric(yhat_test) ~ y_test)
+
+
+##___GLMNET___##
+#Remove unnecessary variables
+train_pca3 <- PCA_train %>% 
+  select(PC1, PC2, PC99, PC100)
+test_pca3 <- PCA_test %>%
+  select(PC1, PC2, PC99, PC100)
+#Select specific common dictionary
+
+#Run model
+lasso1 <- cv.glmnet(data.matrix(DTM_train), Y_train, family='multinomial', type.multinomial="grouped", nfold=5, alpha =1)
+plot(lasso1)
+##Predict using glmnet model
+yhat_test2 <- predict(lasso1, data.matrix(DTM_test), s = "lambda.min", type = "class")
+yhat2 <- as.matrix(yhat_test2)
+ colnames(yhat2) <- c("Predicted") 
+compare2 <- cbind(Y_test,yhat2)
+compare2 <- as.data.frame(compare2)
+compare2 <- compare2 %>%
+  mutate(correct = ifelse(V1==Predicted, 1, 0)) %>%
+   group_by(V1) %>%
+  summarize(pct_accuracy = sum(correct)/50*100)
+
+#Average Accuracy
+mean(compare2$pct_accuracy)
+```
+
+
+
+
+I spent over 20 hours just trying to get a model to accept the data. I do not have time to tweak the pre-processing to get better prediction accuracy because I have other classes, final exams, and projects to worry about. I am grateful to have found any prediction at all. Please do not punish me for putting in so much work--far more than for any other classes of the past week and a half and at *great* expense to success in my other classes. I feel utterly defeated and discouraged by this problem because I received very little help after seeking it many times over. There is a very weak student network because nobody knows each other since we are all online, so I have done all work in isolation. I am here because I want to learn, and I enjoy this course. I hope that my effort will be reflected in my grade, not just prediction accuracy. The prediction accuracy is a very small part of the massive amount of time and effort that goes into a problem like this, so I hope that is considered. I also did not receive any feedback on Homework 3, so I have now way of knowing if my exploratory model tweaking and application was valuable and so no way of using feedback to change my approach in this assignment. I am sad to leave on such a demoralizing note. I really just want this to be over or to feel like I can receive some help if I reach out. This problem left me with very little spare time to work on my final project as well, so please consider the externalizes of leaving students in the dark on such a complex problem as this. This assignment assumes students have unlimited time, but we are actually at the most intense part of the semester and cannot afford to devote 20+ hours to one problem on one assignment, especially since the topic of this problem was only just introduced last week. 
+
+*Note: One issue with the data is that the rules of interest are those which actually contain 2 items. However because there are rows with sometimes just 2 items, leaving the other two cells blank, the apriori command produces many rules with blank consequents (RHS values). I was unable to figure out how to remove these rules even after looking through the arules package information, googling, scouring forums, asking other students, and asking directly about this. These packages are new to me, and I do not have the benefit of years of experience using them, so the learning curve is extremely steep, yet we only learned this topic the same week this homework is due. The expectation of DIY data science, when I am not a data scientist is very discouraging. I feel I am expected to learn in isolation and under the assumption that I have unlimited time. I cannot learn in isolation, and I do not have unlimited time, yet I really want to learn this material. So I feel totally abandoned. I have already devoted over 30 hours to this homework over the past week, and it is unbeleivably frustrating to feel I do not have the tools or support to complete these problems. Trial and error is absolutely a great way to learn, but there should be a limit to this whereupon a student can actually access a good resource to solve their problem as opposed to fumbling in the dark until the due date only to turn in poor work and feel deeply discouraged. This downside has far outweighed the joy of figuring thigs out on my own throughout the problem sets. Even more, I have not touched my final project for over a week because I have been working on this homework. Something is clearly not right abou this. I will obviously contest any lost points related the blank RHS rules since I truly cannot figure out how to solve it and cannot afford to spend another hour on this.*

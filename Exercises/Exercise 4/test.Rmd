@@ -1,0 +1,13 @@
+---
+title: "test"
+author: "Robert Toto"
+date: "5/5/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+![](images/Figure 1.png){height=100%} ![](images/Figure 2.png){height=100%}
+
